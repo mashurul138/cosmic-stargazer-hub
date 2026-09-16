@@ -15,7 +15,7 @@ import {
   Sparkles,
 } from "lucide-react";
 
-import { Navbar } from "@/components/Navbar";
+import { motion } from "framer-motion";
 import { getBortleDetails, reverseGeocode, type BortleDetails } from "@/lib/api/mapbox";
 
 interface DarkSkyPreset {
@@ -181,10 +181,12 @@ export default function LightPollutionMapPage() {
   )}&target=${encodeURIComponent(bortle.suitableTargets[0] ?? "Deep Sky Objects")}`;
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-950 text-slate-100">
-      <Navbar />
-
-      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 py-6 sm:px-6 lg:px-8">
+    <motion.div
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="space-y-6"
+    >
         {/* Page Header */}
         <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -447,7 +449,6 @@ export default function LightPollutionMapPage() {
             </div>
           </aside>
         </div>
-      </main>
-    </div>
+    </motion.div>
   );
 }

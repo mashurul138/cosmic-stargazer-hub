@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
 
 interface NotificationSettings {
@@ -142,10 +143,13 @@ export default function NotificationsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 px-4 py-10 text-slate-100">
-      <div className="mx-auto max-w-2xl">
-        {/* Header */}
-        <div className="mb-8">
+    <motion.div
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="mx-auto max-w-2xl space-y-8"
+    >
+      <div>
           <h1 className="text-3xl font-bold tracking-tight text-white">
             🔔 Notification Settings
           </h1>
@@ -307,7 +311,6 @@ export default function NotificationsPage() {
             </li>
           </ul>
         </div>
-      </div>
-    </main>
+    </motion.div>
   );
 }

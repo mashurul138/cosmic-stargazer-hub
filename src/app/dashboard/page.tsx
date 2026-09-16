@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 
-import { Navbar } from '@/components/Navbar';
+import { motion } from 'framer-motion';
 import type { NASAApodResponse } from '@/lib/api/nasa';
 import type { StargazingWeather } from '@/lib/api/weather';
 import { supabase } from '@/lib/supabase';
@@ -139,10 +139,12 @@ export default function DashboardPage() {
   const weather = dashboardData?.weather;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <Navbar />
-
-      <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <motion.div
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="space-y-8"
+    >
         {isLoading ? <DashboardSkeleton /> : null}
 
         {!isLoading && error ? (
@@ -286,7 +288,6 @@ export default function DashboardPage() {
             </section>
           </div>
         ) : null}
-      </main>
-    </div>
+      </motion.div>
   );
 }

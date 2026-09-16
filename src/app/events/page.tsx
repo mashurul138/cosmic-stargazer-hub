@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { Navbar } from "@/components/Navbar";
+import { motion } from "framer-motion";
 import { generateICSFile, generateMarkdownCard } from "@/lib/utils/event-exporter";
 import { supabase } from "@/lib/supabase";
 import type { SavedEvent } from "@/types/database";
@@ -242,10 +242,12 @@ export default function EventsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <Navbar />
-
-      <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <motion.div
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="space-y-6"
+    >
         {isLoading ? <EventsSkeleton /> : null}
 
         {!isLoading ? (
@@ -346,7 +348,6 @@ export default function EventsPage() {
             </aside>
           </div>
         ) : null}
-      </main>
-    </div>
+      </motion.div>
   );
 }

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 
 import { supabase } from "@/lib/supabase";
 
@@ -53,21 +54,25 @@ export default function HomePage() {
   }, [router]);
 
   if (isCheckingSession) {
-    return <main className="flex min-h-screen items-center justify-center bg-slate-950 text-slate-300"><span className="text-sm font-medium tracking-wide">Mapping the night sky…</span></main>;
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center text-slate-300">
+        <span className="text-sm font-medium tracking-wide">Mapping the night sky…</span>
+      </div>
+    );
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-slate-950 text-slate-100">
+    <motion.div
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="relative overflow-hidden w-full"
+    >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_10%,rgba(79,70,229,0.24),transparent_28%),radial-gradient(circle_at_82%_34%,rgba(14,165,233,0.16),transparent_24%),linear-gradient(to_bottom,#020617,#0f172a_52%,#020617)]" />
       <div className="pointer-events-none absolute left-[9%] top-24 h-1 w-1 rounded-full bg-white shadow-[9rem_4rem_0_rgba(255,255,255,0.75),20rem_14rem_0_rgba(255,255,255,0.6),35rem_-2rem_0_rgba(255,255,255,0.8),49rem_18rem_0_rgba(255,255,255,0.5),62rem_7rem_0_rgba(255,255,255,0.75),-4rem_26rem_0_rgba(255,255,255,0.55)]" />
 
-      <div className="relative mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 sm:px-6 lg:px-8">
-        <header className="flex items-center justify-between py-6">
-          <Link href="/" className="text-base font-bold tracking-tight text-white sm:text-lg">Cosmic Stargazer Hub</Link>
-          <Link href="/login" className="text-sm font-semibold text-slate-300 transition hover:text-white">Sign In</Link>
-        </header>
-
-        <section className="flex flex-1 flex-col justify-center py-16 sm:py-24">
+      <div className="relative mx-auto flex w-full max-w-7xl flex-col px-4 sm:px-6 lg:px-8">
+        <section className="flex flex-1 flex-col justify-center py-10 sm:py-16">
           <div className="max-w-4xl">
             <p className="inline-flex rounded-full border border-indigo-400/30 bg-indigo-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-indigo-200">Plan · Observe · Discover</p>
             <h1 className="mt-6 text-4xl font-bold tracking-tight text-white sm:text-6xl lg:text-7xl">Cosmic Event &amp; Stargazer Hub</h1>
@@ -91,6 +96,6 @@ export default function HomePage() {
 
         <footer className="py-6 text-center text-xs text-slate-500">Built for clear skies and curious minds.</footer>
       </div>
-    </main>
+    </motion.div>
   );
 }

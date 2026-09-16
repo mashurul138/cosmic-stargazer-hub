@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useState } from 'react';
+import { motion } from 'framer-motion';
 
 import { supabase } from '@/lib/supabase';
 import { loginSchema } from '@/lib/validations/auth';
@@ -47,7 +48,12 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-12 text-slate-100">
+    <motion.div
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="flex min-h-[calc(100vh-12rem)] items-center justify-center px-4 py-8"
+    >
       <section className="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl shadow-indigo-950/40 sm:p-8">
         <p className="text-sm font-semibold uppercase tracking-[0.2em] text-indigo-300">
           Cosmic Event &amp; Stargazer Hub
@@ -119,6 +125,6 @@ export default function LoginPage() {
           </Link>
         </p>
       </section>
-    </main>
+    </motion.div>
   );
 }

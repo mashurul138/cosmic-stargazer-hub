@@ -18,7 +18,7 @@ import {
   X,
 } from "lucide-react";
 
-import { Navbar } from "@/components/Navbar";
+import { motion } from "framer-motion";
 import type { StarPartyWithDetails } from "@/types/database";
 
 function formatEventDate(isoDate: string): string {
@@ -257,10 +257,12 @@ export default function StarPartiesPage() {
   }, [parties, filterView, searchQuery]);
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-950 text-slate-100">
-      <Navbar />
-
-      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 py-8 sm:px-6 lg:px-8">
+    <motion.div
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="space-y-6"
+    >
         {/* Page Header */}
         <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -677,7 +679,6 @@ export default function StarPartiesPage() {
             </div>
           </div>
         ) : null}
-      </main>
-    </div>
+      </motion.div>
   );
 }

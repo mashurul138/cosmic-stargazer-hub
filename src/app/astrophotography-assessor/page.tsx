@@ -23,7 +23,7 @@ import {
   Zap,
 } from "lucide-react";
 
-import { Navbar } from "@/components/Navbar";
+import { motion } from "framer-motion";
 import type { DiagnosticReport, ImageStats } from "@/lib/utils/assess-photo";
 
 const TARGET_TYPES = [
@@ -129,10 +129,12 @@ export default function AstrophotographyAssessorPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-950 text-slate-100">
-      <Navbar />
-
-      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 py-8 sm:px-6 lg:px-8">
+    <motion.div
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="space-y-6"
+    >
         {/* Header */}
         <header className="mb-8">
           <div className="flex items-center gap-2">
@@ -482,7 +484,6 @@ export default function AstrophotographyAssessorPage() {
             )}
           </section>
         </div>
-      </main>
-    </div>
+      </motion.div>
   );
 }

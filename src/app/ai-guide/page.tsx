@@ -4,7 +4,7 @@ import { FormEvent, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-import { Navbar } from "@/components/Navbar";
+import { motion } from "framer-motion";
 
 type ChatMessage = {
   id: string;
@@ -97,10 +97,12 @@ export default function AiGuidePage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-950 text-slate-100">
-      <Navbar />
-
-      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 py-8 sm:px-6 lg:px-8">
+    <motion.div
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="mx-auto flex w-full max-w-5xl flex-1 flex-col"
+    >
         <section className="flex min-h-[42rem] flex-1 flex-col overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl shadow-indigo-950/30">
           <header className="border-b border-slate-700 bg-gradient-to-r from-indigo-950 to-slate-900 px-6 py-5 sm:px-8">
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-indigo-300">AI-powered observing help</p>
@@ -140,7 +142,7 @@ export default function AiGuidePage() {
                   ) : (
                     <p className="whitespace-pre-wrap text-sm leading-6">{message.content}</p>
                   )}
-                  <p className={`mt-2 text-xs ${message.role === "user" ? "text-indigo-100" : "text-slate-500"}`}>
+                  <p suppressHydrationWarning className={`mt-2 text-xs ${message.role === "user" ? "text-indigo-100" : "text-slate-500"}`}>
                     {message.role === "user" ? "You" : "Cosmic Guide"} · {formatTimestamp(message.timestamp)}
                   </p>
                 </div>
@@ -198,7 +200,6 @@ export default function AiGuidePage() {
             </form>
           </div>
         </section>
-      </main>
-    </div>
+      </motion.div>
   );
 }

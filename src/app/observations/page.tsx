@@ -3,7 +3,7 @@
 import { FormEvent, Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
-import { Navbar } from "@/components/Navbar";
+import { motion } from "framer-motion";
 import { calculateVisibilityScore, type VisibilityScore } from "@/lib/utils/visibility-score";
 import { observationSchema, type ObservationInput } from "@/lib/validations/observation";
 import type { Equipment, Observation } from "@/types/database";
@@ -240,10 +240,12 @@ function ObservationsContent() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <Navbar />
-
-      <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <motion.div
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="space-y-6"
+    >
         {isLoading ? <ObservationsSkeleton /> : null}
 
         {!isLoading && pageError ? (
@@ -483,23 +485,13 @@ function ObservationsContent() {
             </section>
           </div>
         ) : null}
-      </main>
-    </div>
+      </motion.div>
   );
 }
 
 export default function ObservationsPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-slate-950 text-slate-100">
-          <Navbar />
-          <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-            <ObservationsSkeleton />
-          </main>
-        </div>
-      }
-    >
+    <Suspense fallback={<ObservationsSkeleton />}>
       <ObservationsContent />
     </Suspense>
   );
