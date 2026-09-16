@@ -93,14 +93,29 @@ export function Navbar() {
             <Link href="/map" className="transition hover:text-white">
               Dark Sky Map
             </Link>
+            <Link href="/satellites" className="transition hover:text-white">
+              Satellites
+            </Link>
             <Link href="/observations" className="transition hover:text-white">
               Observations
             </Link>
             <Link href="/events" className="transition hover:text-white">
               Events
             </Link>
+            <Link href="/star-parties" className="transition hover:text-white">
+              Star Parties
+            </Link>
             <Link href="/equipment" className="transition hover:text-white">
               Equipment
+            </Link>
+            <Link href="/fov-simulator" className="transition hover:text-white">
+              FOV Simulator
+            </Link>
+            <Link href="/astrophotography-assessor" className="transition hover:text-white">
+              Photo Assessor
+            </Link>
+            <Link href="/notifications" className="transition hover:text-white">
+              Notifications
             </Link>
             <Link href="/ai-guide" className="transition hover:text-white">
               AI Guide

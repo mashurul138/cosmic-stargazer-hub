@@ -41,6 +41,43 @@ export interface SavedEvent {
   created_at: string;
 }
 
+export interface StarParty {
+  id: string;
+  host_id: string;
+  title: string;
+  description: string;
+  location_name: string;
+  latitude: number;
+  longitude: number;
+  event_date: string;
+  max_attendees: number;
+  created_at: string;
+}
+
+export interface PartyAttendee {
+  id: string;
+  party_id: string;
+  user_id: string;
+  joined_at: string;
+}
+
+export interface StarPartyWithDetails extends StarParty {
+  host?: {
+    email: string;
+    role: UserRole;
+  } | null;
+  attendee_count: number;
+  is_attending: boolean;
+}
+
+export interface NotificationSettings {
+  user_id: string;
+  discord_webhook: string | null;
+  min_score_threshold: number;
+  enabled: boolean;
+  updated_at: string;
+}
+
 export interface Database {
   public: {
     Tables: {
