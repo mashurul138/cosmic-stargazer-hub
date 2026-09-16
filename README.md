@@ -1,36 +1,122 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Cosmic Event & Stargazer Hub
 
-## Getting Started
+Cosmic Event & Stargazer Hub is a full-stack stargazing companion for planning observations, tracking celestial events, recording night-sky logs, assessing live viewing conditions, and receiving concise guidance from an AI astronomy assistant.
 
-First, run the development server:
+## Tech stack
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- Next.js 14 App Router (the Phase 1 target; this repository currently runs the newer, compatible Next.js 16.3.5 release)
+- TypeScript
+- Tailwind CSS
+- Supabase Auth, Postgres, and Row Level Security
+- Groq API for the Cosmic AI Guide
+- NASA Astronomy Picture of the Day API
+- Open-Meteo weather API
+- Zod for runtime validation
+- Vitest for unit testing
+
+## Prerequisites
+
+- Node.js 20 or newer
+- npm 10 or newer
+- A Supabase project
+- A Groq API key for live AI responses
+
+## Environment variables
+
+Create a `.env.local` file in the repository root:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
+NASA_API_KEY=DEMO_KEY
+GROQ_API_KEY=your-groq-api-key
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`NASA_API_KEY` is optional because the application falls back to NASA's `DEMO_KEY`; use a personal NASA key in production to avoid the shared demo rate limit. `GROQ_API_KEY` is optional for local UI development, but the AI Guide will return a fallback response until a valid key is configured.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Never commit `.env.local`, Supabase secrets, or API keys.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Installation and local development
 
-## Learn More
+1. Install dependencies:
 
-To learn more about Next.js, take a look at the following resources:
+   ```bash
+   npm install
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+2. Configure `.env.local` using the variables above.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+3. Start the development server:
 
-## Deploy on Vercel
+   ```bash
+   npm run dev
+   ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+4. Open `http://localhost:3000` in a browser.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+5. Run unit tests:
+
+   ```bash
+   npm run test
+   ```
+
+Useful production checks:
+
+```bash
+npm run lint
+npm run build
+```
+
+## Database setup
+
+The Supabase schema is defined in `schema.sql`. In the Supabase dashboard, open **SQL Editor**, paste the complete contents of `schema.sql`, and run it against the target project before using the application.
+
+The schema creates the `user_role` enum, `profiles`, `observations`, and `saved_events` tables; creates a profile when an Auth user signs up; and enables Row Level Security policies.
+
+For astronomers to remove community observations, add an astronomer DELETE policy for `public.observations` in addition to the global astronomer SELECT policy. The API performs the application-level role check, but Supabase RLS remains the final authorization layer.
+
+## Feature overview
+
+### Authentication and roles
+
+- Email and password sign-up/sign-in with Supabase Auth
+- A profile record for every authenticated user
+- `stargazer` and `astronomer` roles
+- Dashboard and admin-route protection through server-side session checks
+
+### External data integrations
+
+- NASA Astronomy Picture of the Day card with a cached daily response and a resilient fallback
+- Open-Meteo live weather data for Greenwich Observatory by default
+- Stargazing weather measurements for temperature, cloud cover, humidity, wind speed, and visibility
+
+### Observation logging and visibility engine
+
+- Validated observation logs with target, location, notes, and a one-to-five rating
+- Personal observation archive with delete controls
+- Astronomer global-view mode for community observations
+- Stargazing Visibility Score Engine that evaluates cloud cover, humidity, wind, and visibility and produces an actionable recommendation
+
+### Celestial events and exporter tools
+
+- Curated upcoming celestial events
+- Saved Events Hub persisted in Supabase
+- One-click iCalendar (`.ics`) export for calendar applications
+- Markdown event-card export for observing notes
+
+### Cosmic AI Guide
+
+- Authenticated Groq-powered astronomy chat endpoint
+- Preset questions for beginner equipment, Saturn observations, and astrophotography
+- Concise advice about stargazing, equipment, and observational planning
+- Safe fallback advice when Groq is unavailable or no API key is configured
+
+## Project scripts
+
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start the local Next.js development server. |
+| `npm run lint` | Run ESLint across the project. |
+| `npm run test` | Run the Vitest unit suite once. |
+| `npm run build` | Create and validate the production build. |
+| `npm start` | Start the built production application. |
