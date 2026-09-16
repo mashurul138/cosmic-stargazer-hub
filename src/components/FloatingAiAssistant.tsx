@@ -3,6 +3,8 @@
 import { usePathname } from 'next/navigation';
 import { useState, useRef, useEffect, useTransition } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import {
   Sparkles,
   X,
@@ -113,6 +115,29 @@ function generateFollowUps(lastResponse: string): string[] {
     'What celestial targets should I try next?',
   ];
 }
+
+const markdownComponents = {
+  table: ({ node, ...props }: any) => (
+    <div className="overflow-x-auto my-3 rounded-lg border border-slate-700/80">
+      <table className="w-full text-left border-collapse text-xs text-slate-200" {...props} />
+    </div>
+  ),
+  th: ({ node, ...props }: any) => (
+    <th className="bg-slate-800/90 p-2 font-semibold text-sky-300 border-b border-slate-700" {...props} />
+  ),
+  td: ({ node, ...props }: any) => (
+    <td className="p-2 border-b border-slate-800/60 text-slate-300" {...props} />
+  ),
+  ul: ({ node, ...props }: any) => (
+    <ul className="list-disc list-inside space-y-1 my-2 text-slate-200 text-xs" {...props} />
+  ),
+  ol: ({ node, ...props }: any) => (
+    <ol className="list-decimal list-inside space-y-1 my-2 text-slate-200 text-xs" {...props} />
+  ),
+  strong: ({ node, ...props }: any) => <strong className="font-semibold text-sky-200" {...props} />,
+  p: ({ node, ...props }: any) => <p className="mb-2 leading-relaxed text-xs text-slate-200 last:mb-0" {...props} />,
+  h3: ({ node, ...props }: any) => <h3 className="font-bold text-sky-400 mt-3 mb-1 text-sm" {...props} />,
+};
 
 export function FloatingAiAssistant() {
   const pathname = usePathname();
@@ -302,13 +327,19 @@ export function FloatingAiAssistant() {
                         </div>
                       )}
                       <div
-                        className={`max-w-[82%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed shadow-md ${
+                        className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed shadow-md ${
                           msg.role === 'user'
-                            ? 'bg-gradient-to-r from-sky-600 to-indigo-600 text-white rounded-tr-xs'
-                            : 'glass-panel text-slate-200 rounded-tl-xs border border-slate-800/90 whitespace-pre-wrap'
+                            ? 'bg-gradient-to-r from-sky-600 to-indigo-600 text-white rounded-tr-xs whitespace-pre-wrap'
+                            : 'glass-panel text-slate-200 rounded-tl-xs border border-slate-800/90'
                         }`}
                       >
-                        {msg.content}
+                        {msg.role === 'assistant' ? (
+                          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                            {msg.content}
+                          </ReactMarkdown>
+                        ) : (
+                          <p className="whitespace-pre-wrap">{msg.content}</p>
+                        )}
                       </div>
                       {msg.role === 'user' && (
                         <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-slate-700 text-white mt-0.5">

@@ -177,26 +177,6 @@ export function Navbar() {
 
           {/* Right Action Items & Profile */}
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Desktop Quick Nav Links */}
-            <div className="hidden xl:flex items-center gap-1 border-r border-slate-800/80 pr-3 mr-1">
-              <Link
-                href="/dashboard"
-                className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
-                  pathname === '/dashboard' ? 'text-sky-300 bg-sky-500/10' : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                Dashboard
-              </Link>
-              <Link
-                href="/events"
-                className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
-                  pathname === '/events' ? 'text-sky-300 bg-sky-500/10' : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                Events
-              </Link>
-            </div>
-
             {/* Notification Bell */}
             <Link
               href="/notifications"
