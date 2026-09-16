@@ -27,12 +27,13 @@
     "satellite.js": "^7.1.0",
     "sharp": "^0.35.4",
     "tailwind-merge": "^3.7.0",
+    "vercel": "^50.41.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/mapbox-gl": "^3.4.1",
-    "@types/node": "^20",
+    "@types/node": "^22.20.3",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
@@ -43,6 +44,6 @@
   },
   "allowScripts": {
     "unrs-resolver@1.12.2": true,
-    "esbuild@0.28.2": true
+    "esbuild@0.27.0": true
   }
 }
