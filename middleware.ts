@@ -1,4 +1,4 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -26,33 +26,27 @@ function redirectWithSessionCookies(url: URL, response: NextResponse) {
   return redirectResponse;
 }
 
-type CookieToSet = {
-  name: string;
-  value: string;
-  options: CookieOptions;
-};
-
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({ request });
+  let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(supabaseUrl!, supabasePublishableKey!, {
     cookies: {
       getAll() {
         return request.cookies.getAll();
       },
-      setAll(cookiesToSet: CookieToSet[], headers: Record<string, string>) {
+      setAll(cookiesToSet, headers) {
         cookiesToSet.forEach(({ name, value }) => {
           request.cookies.set(name, value);
         });
 
-        response = NextResponse.next({ request });
+        supabaseResponse = NextResponse.next({ request });
 
         cookiesToSet.forEach(({ name, value, options }) => {
-          response.cookies.set(name, value, options);
+          supabaseResponse.cookies.set(name, value, options);
         });
 
         Object.entries(headers).forEach(([name, value]) => {
-          response.headers.set(name, value);
+          supabaseResponse.headers.set(name, value);
         });
       },
     },
@@ -63,7 +57,7 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return redirectWithSessionCookies(new URL("/login", request.url), response);
+    return redirectWithSessionCookies(new URL("/login", request.url), supabaseResponse);
   }
 
   if (request.nextUrl.pathname.startsWith("/admin")) {
@@ -76,12 +70,12 @@ export async function middleware(request: NextRequest) {
     if (profile?.role !== "astronomer") {
       return redirectWithSessionCookies(
         new URL("/dashboard", request.url),
-        response,
+        supabaseResponse,
       );
     }
   }
 
-  return response;
+  return supabaseResponse;
 }
 
 export const config = {

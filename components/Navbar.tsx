@@ -90,8 +90,20 @@ export function Navbar() {
             <Link href="/dashboard" className="transition hover:text-white">
               Dashboard
             </Link>
+            <Link href="/map" className="transition hover:text-white">
+              Dark Sky Map
+            </Link>
+            <Link href="/observations" className="transition hover:text-white">
+              Observations
+            </Link>
             <Link href="/events" className="transition hover:text-white">
               Events
+            </Link>
+            <Link href="/equipment" className="transition hover:text-white">
+              Equipment
+            </Link>
+            <Link href="/ai-guide" className="transition hover:text-white">
+              AI Guide
             </Link>
             {account?.role === 'astronomer' ? (
               <Link href="/admin" className="transition hover:text-white">

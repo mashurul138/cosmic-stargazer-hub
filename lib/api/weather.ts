@@ -20,6 +20,8 @@ type OpenMeteoResponse = {
   };
 };
 
+const EXTERNAL_API_TIMEOUT_MS = 5_000;
+
 function getFallbackWeather(
   latitude: number,
   longitude: number,
@@ -43,23 +45,26 @@ export async function getStargazingWeather(
   lat = 51.4769,
   lng = -0.0005,
 ): Promise<StargazingWeather> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), EXTERNAL_API_TIMEOUT_MS);
+
   try {
     const response = await fetch(
       `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,cloud_cover,wind_speed_10m,visibility`,
-      { cache: "no-store" },
+      { cache: "no-store", signal: controller.signal },
     );
 
     if (!response.ok) {
-      throw new Error(
-        `Open-Meteo request failed with status ${response.status}.`,
-      );
+      console.warn(`Open-Meteo request failed with status ${response.status}.`);
+      return getFallbackWeather(lat, lng);
     }
 
     const data = (await response.json()) as OpenMeteoResponse;
     const current = data.current;
 
     if (!current) {
-      throw new Error("Open-Meteo returned no current weather data.");
+      console.warn("Open-Meteo returned no current weather data.");
+      return getFallbackWeather(lat, lng);
     }
 
     return {
@@ -74,5 +79,7 @@ export async function getStargazingWeather(
   } catch (error) {
     console.error("Unable to retrieve Open-Meteo stargazing weather:", error);
     return getFallbackWeather(lat, lng);
+  } finally {
+    clearTimeout(timeoutId);
   }
 }

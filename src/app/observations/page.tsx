@@ -1,11 +1,12 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, Suspense, useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 import { Navbar } from "@/components/Navbar";
 import { calculateVisibilityScore, type VisibilityScore } from "@/lib/utils/visibility-score";
 import { observationSchema, type ObservationInput } from "@/lib/validations/observation";
-import type { Observation } from "@/types/database";
+import type { Equipment, Observation } from "@/types/database";
 
 type SpaceDataResponse = {
   weather: {
@@ -21,12 +22,17 @@ type ObservationsResponse = {
   isAstronomerView: boolean;
 };
 
+type EquipmentResponse = {
+  equipment: Equipment[];
+};
+
 type ObservationFormState = {
   title: string;
   celestial_target: string;
   location: string;
   notes: string;
   rating: string;
+  equipment_id: string;
 };
 
 const initialFormState: ObservationFormState = {
@@ -35,6 +41,7 @@ const initialFormState: ObservationFormState = {
   location: "",
   notes: "",
   rating: "5",
+  equipment_id: "",
 };
 
 const visibilityBadgeClasses: Record<VisibilityScore["level"], string> = {
@@ -67,11 +74,20 @@ function ObservationsSkeleton() {
   );
 }
 
-export default function ObservationsPage() {
+function ObservationsContent() {
+  const searchParams = useSearchParams();
+  const locationParam = searchParams.get("location");
+  const targetParam = searchParams.get("target");
+
   const [observations, setObservations] = useState<Observation[]>([]);
   const [visibilityScore, setVisibilityScore] = useState<VisibilityScore | null>(null);
   const [isAstronomerView, setIsAstronomerView] = useState(false);
-  const [formData, setFormData] = useState<ObservationFormState>(initialFormState);
+  const [equipment, setEquipment] = useState<Equipment[]>([]);
+  const [formData, setFormData] = useState<ObservationFormState>(() => ({
+    ...initialFormState,
+    location: locationParam ?? "",
+    celestial_target: targetParam ?? "",
+  }));
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
   const [pageError, setPageError] = useState<string | null>(null);
@@ -84,9 +100,10 @@ export default function ObservationsPage() {
     setPageError(null);
 
     try {
-      const [spaceDataResponse, observationsResponse] = await Promise.all([
+      const [spaceDataResponse, observationsResponse, equipmentResponse] = await Promise.all([
         fetch("/api/space-data"),
         fetch("/api/observations"),
+        fetch("/api/equipment"),
       ]);
 
       if (!spaceDataResponse.ok) {
@@ -100,8 +117,16 @@ export default function ObservationsPage() {
         throw new Error(responseBody?.error ?? "Unable to retrieve observation logs.");
       }
 
+      if (!equipmentResponse.ok) {
+        const responseBody = (await equipmentResponse.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(responseBody?.error ?? "Unable to retrieve your equipment inventory.");
+      }
+
       const spaceData = (await spaceDataResponse.json()) as SpaceDataResponse;
       const observationData = (await observationsResponse.json()) as ObservationsResponse;
+      const equipmentData = (await equipmentResponse.json()) as EquipmentResponse;
 
       setVisibilityScore(
         calculateVisibilityScore({
@@ -113,6 +138,7 @@ export default function ObservationsPage() {
       );
       setObservations(observationData.observations);
       setIsAstronomerView(observationData.isAstronomerView);
+      setEquipment(equipmentData.equipment);
     } catch (error) {
       setPageError(
         error instanceof Error
@@ -147,6 +173,7 @@ export default function ObservationsPage() {
       location: formData.location.trim(),
       notes: formData.notes.trim(),
       rating: Number(formData.rating),
+      equipment_id: formData.equipment_id || null,
     };
     const validation = observationSchema.safeParse(payload);
 
@@ -353,6 +380,23 @@ export default function ObservationsPage() {
                 </label>
 
                 <label className="block text-sm font-medium text-slate-200 md:col-span-2">
+                  Equipment used <span className="font-normal text-slate-400">(optional)</span>
+                  <select
+                    value={formData.equipment_id}
+                    onChange={(event) => updateField("equipment_id", event.target.value)}
+                    disabled={isSubmitting}
+                    className="mt-2 w-full rounded-lg border border-slate-600 bg-slate-950 px-3 py-2.5 text-slate-100 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/30 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <option value="">No equipment linked</option>
+                    {equipment.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name} ({item.type})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="block text-sm font-medium text-slate-200 md:col-span-2">
                   Observation notes
                   <textarea
                     value={formData.notes}
@@ -441,5 +485,22 @@ export default function ObservationsPage() {
         ) : null}
       </main>
     </div>
+  );
+}
+
+export default function ObservationsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-950 text-slate-100">
+          <Navbar />
+          <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+            <ObservationsSkeleton />
+          </main>
+        </div>
+      }
+    >
+      <ObservationsContent />
+    </Suspense>
   );
 }

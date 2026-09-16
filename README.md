@@ -97,6 +97,13 @@ For astronomers to remove community observations, add an astronomer DELETE polic
 - Astronomer global-view mode for community observations
 - Stargazing Visibility Score Engine that evaluates cloud cover, humidity, wind, and visibility and produces an actionable recommendation
 
+### Optical equipment manager
+
+- Personal inventory for telescopes, eyepieces, and binoculars
+- Live focal-ratio, resolving-limit, light-gathering, magnification, and max-useful-magnification calculations
+- Target suitability guidance based on aperture and selected magnification
+- Optional equipment linking on every observation log
+
 ### Celestial events and exporter tools
 
 - Curated upcoming celestial events

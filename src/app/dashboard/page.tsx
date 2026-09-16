@@ -19,6 +19,27 @@ type Account = {
   role: UserRole;
 };
 
+const DASHBOARD_LOAD_TIMEOUT_MS = 2_000;
+
+function withTimeout<T>(promise: PromiseLike<T>, message: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => {
+      reject(new Error(message));
+    }, DASHBOARD_LOAD_TIMEOUT_MS);
+
+    Promise.resolve(promise).then(
+      (value) => {
+        window.clearTimeout(timeoutId);
+        resolve(value);
+      },
+      (error: unknown) => {
+        window.clearTimeout(timeoutId);
+        reject(error);
+      },
+    );
+  });
+}
+
 function DashboardSkeleton() {
   return (
     <div className="animate-pulse space-y-6" aria-label="Loading dashboard">
@@ -58,10 +79,10 @@ export default function DashboardPage() {
     setError(null);
 
     try {
-      const [userResult, spaceDataResponse] = await Promise.all([
-        supabase.auth.getUser(),
-        fetch('/api/space-data'),
-      ]);
+      const [userResult, spaceDataResponse] = await withTimeout(
+        Promise.all([supabase.auth.getUser(), fetch('/api/space-data')]),
+        'Dashboard loading timed out. Please refresh and try again.',
+      );
 
       if (userResult.error || !userResult.data.user) {
         throw new Error('Your session could not be verified. Please sign in again.');
@@ -76,11 +97,14 @@ export default function DashboardPage() {
 
       const data = (await spaceDataResponse.json()) as DashboardData;
       const user = userResult.data.user;
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('email, role')
-        .eq('id', user.id)
-        .maybeSingle();
+      const { data: profile, error: profileError } = await withTimeout(
+        supabase
+          .from('profiles')
+          .select('email, role')
+          .eq('id', user.id)
+          .maybeSingle(),
+        'Profile loading timed out. Please refresh and try again.',
+      );
 
       if (profileError) {
         throw new Error('Unable to load your profile details.');

@@ -19,6 +19,8 @@ const NASA_APOD_FALLBACK: NASAApodResponse = {
   url: "https://apod.nasa.gov/apod/astropix.html",
 };
 
+const EXTERNAL_API_TIMEOUT_MS = 5_000;
+
 type NASAApiResponse = {
   copyright?: unknown;
   date: string;
@@ -43,25 +45,29 @@ function isApodResponse(value: unknown): value is NASAApiResponse {
 }
 
 export async function getAstronomyPictureOfTheDay(): Promise<NASAApodResponse> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), EXTERNAL_API_TIMEOUT_MS);
+
   try {
     const response = await fetch(
       `https://api.nasa.gov/planetary/apod?api_key=${process.env.NASA_API_KEY || "DEMO_KEY"}`,
       {
         cache: "force-cache",
         next: { revalidate: 86400 },
+        signal: controller.signal,
       },
     );
 
     if (!response.ok) {
-      throw new Error(
-        `NASA APOD request failed with status ${response.status}.`,
-      );
+      console.warn(`NASA APOD request failed with status ${response.status}.`);
+      return NASA_APOD_FALLBACK;
     }
 
     const data: unknown = await response.json();
 
     if (!isApodResponse(data)) {
-      throw new Error("NASA APOD returned an unexpected response format.");
+      console.warn("NASA APOD returned an unexpected response format.");
+      return NASA_APOD_FALLBACK;
     }
 
     return {
@@ -79,5 +85,7 @@ export async function getAstronomyPictureOfTheDay(): Promise<NASAApodResponse> {
       error,
     );
     return NASA_APOD_FALLBACK;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }

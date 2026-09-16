@@ -16,6 +16,7 @@ export const observationSchema = z.object({
     .int("Rating must be a whole number.")
     .min(1, "Rating must be at least 1.")
     .max(5, "Rating cannot be more than 5."),
+  equipment_id: z.string().uuid("Equipment selection must be a valid item.").nullable().optional(),
 });
 
 export type ObservationInput = z.infer<typeof observationSchema>;

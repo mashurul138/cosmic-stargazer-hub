@@ -1,6 +1,8 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import { Navbar } from "@/components/Navbar";
 
@@ -119,7 +121,25 @@ export default function AiGuidePage() {
                       : "rounded-bl-sm border border-slate-700 bg-slate-950 text-slate-100"
                   }`}
                 >
-                  <p className="whitespace-pre-wrap text-sm leading-6">{message.content}</p>
+                  {message.role === "assistant" ? (
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        h3: ({ node, ...props }) => <h3 className="text-lg font-bold text-sky-400 mt-4 mb-2" {...props} />,
+                        p: ({ node, ...props }) => <p className="mb-3 text-slate-200 leading-relaxed" {...props} />,
+                        ul: ({ node, ...props }) => <ul className="list-disc list-inside space-y-1 mb-3 text-slate-200" {...props} />,
+                        ol: ({ node, ...props }) => <ol className="list-decimal list-inside space-y-1 mb-3 text-slate-200" {...props} />,
+                        strong: ({ node, ...props }) => <strong className="font-semibold text-white" {...props} />,
+                        table: ({ node, ...props }) => <div className="overflow-x-auto my-4"><table className="w-full text-left border-collapse border border-slate-700 text-sm" {...props} /></div>,
+                        th: ({ node, ...props }) => <th className="border border-slate-700 bg-slate-800/80 p-2 font-semibold text-sky-300" {...props} />,
+                        td: ({ node, ...props }) => <td className="border border-slate-800 p-2 text-slate-300" {...props} />,
+                      }}
+                    >
+                      {message.content}
+                    </ReactMarkdown>
+                  ) : (
+                    <p className="whitespace-pre-wrap text-sm leading-6">{message.content}</p>
+                  )}
                   <p className={`mt-2 text-xs ${message.role === "user" ? "text-indigo-100" : "text-slate-500"}`}>
                     {message.role === "user" ? "You" : "Cosmic Guide"} · {formatTimestamp(message.timestamp)}
                   </p>

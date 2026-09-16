@@ -15,6 +15,20 @@ export interface Observation {
   celestial_target: string;
   location: string;
   rating: number;
+  equipment_id: string | null;
+  created_at: string;
+}
+
+export type EquipmentType = "telescope" | "eyepiece" | "binoculars";
+
+export interface Equipment {
+  id: string;
+  user_id: string;
+  name: string;
+  type: EquipmentType;
+  aperture_mm: number;
+  focal_length_mm: number;
+  eyepiece_focal_length_mm: number | null;
   created_at: string;
 }
 
@@ -56,6 +70,7 @@ export interface Database {
           celestial_target: string;
           location: string;
           rating: number;
+          equipment_id?: string | null;
           created_at?: string;
         };
         Update: {
@@ -66,11 +81,44 @@ export interface Database {
           celestial_target?: string;
           location?: string;
           rating?: number;
+          equipment_id?: string | null;
           created_at?: string;
         };
         Relationships: [
           {
             foreignKeyName: "observations_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      equipment: {
+        Row: Equipment;
+        Insert: {
+          id?: string;
+          user_id: string;
+          name: string;
+          type: EquipmentType;
+          aperture_mm: number;
+          focal_length_mm: number;
+          eyepiece_focal_length_mm?: number | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          name?: string;
+          type?: EquipmentType;
+          aperture_mm?: number;
+          focal_length_mm?: number;
+          eyepiece_focal_length_mm?: number | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "equipment_user_id_fkey";
             columns: ["user_id"];
             isOneToOne: false;
             referencedRelation: "profiles";
