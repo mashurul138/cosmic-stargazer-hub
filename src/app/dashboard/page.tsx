@@ -31,6 +31,9 @@ import { getBortleDetails, reverseGeocode, type BortleDetails } from '@/lib/api/
 import { calculateVisibilityScore, type VisibilityScore } from '@/lib/utils/visibility-score';
 import { supabase } from '@/lib/supabase';
 import type { Equipment, Observation, UserRole } from '@/types/database';
+import { useUserLocation } from '@/src/hooks/useUserLocation';
+import { LocationSkeletonLoader } from '@/src/components/LocationSkeletonLoader';
+import { useAuth } from '@/src/context/AuthContext';
 
 interface DashboardData {
   apod: NASAApodResponse | null;
@@ -98,6 +101,7 @@ function getSeeingRating(windSpeed: number, humidity: number, cloudCover: number
 }
 
 export default function DashboardPage() {
+  const { requireAuth } = useAuth();
   // GPS & Location State
   const [coords, setCoords] = useState<{ lat: number; lng: number }>({ lat: 51.4769, lng: -0.0005 });
   const [locationName, setLocationName] = useState<string>('Greenwich, London');
@@ -131,45 +135,16 @@ export default function DashboardPage() {
   // Moon Phase
   const moonPhase = getMoonPhase();
 
-  // 1. Request GPS Location on Mount
+  // 1. Strict GPS Location via useUserLocation
+  const { location: userLoc, loading: locationLoading } = useUserLocation();
+
   useEffect(() => {
-    let isMounted = true;
-
-    if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          if (!isMounted) return;
-          const lat = position.coords.latitude;
-          const lng = position.coords.longitude;
-          setCoords({ lat, lng });
-
-          try {
-            const resolvedName = await reverseGeocode(lat, lng);
-            if (isMounted) {
-              setLocationName(resolvedName);
-            }
-          } catch {
-            if (isMounted) {
-              setLocationName(`${lat.toFixed(2)}°, ${lng.toFixed(2)}°`);
-            }
-          } finally {
-            if (isMounted) setIsDetectingLocation(false);
-          }
-        },
-        () => {
-          // Graceful fallback to Greenwich on deny or error
-          if (isMounted) setIsDetectingLocation(false);
-        },
-        { timeout: 8000, enableHighAccuracy: false }
-      );
-    } else {
+    if (!locationLoading && userLoc) {
+      setCoords({ lat: userLoc.lat, lng: userLoc.lng });
+      setLocationName(userLoc.cityName);
       setIsDetectingLocation(false);
     }
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  }, [locationLoading, userLoc]);
 
   // 2. Fetch Dashboard Space Data (Weather, APOD, Bortle) when coords change
   const loadDashboardData = useCallback(async () => {
@@ -245,8 +220,10 @@ export default function DashboardPage() {
   }, [coords]);
 
   useEffect(() => {
-    void loadDashboardData();
-  }, [loadDashboardData]);
+    if (!locationLoading) {
+      void loadDashboardData();
+    }
+  }, [locationLoading, loadDashboardData]);
 
   // Set default modal location when locationName changes
   useEffect(() => {
@@ -258,78 +235,79 @@ export default function DashboardPage() {
     e.preventDefault();
     if (!logTitle || !logTarget || !logLocation || !logNotes) return;
 
-    setIsLogging(true);
-    try {
-      const res = await fetch('/api/observations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: logTitle,
-          celestial_target: logTarget,
-          location: logLocation,
-          rating: logRating,
-          notes: logNotes,
-          equipment_id: logEquipmentId || null,
-        }),
-      });
+    requireAuth(async () => {
+      setIsLogging(true);
+      try {
+        const res = await fetch('/api/observations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: logTitle,
+            celestial_target: logTarget,
+            location: logLocation,
+            rating: logRating,
+            notes: logNotes,
+            equipment_id: logEquipmentId || null,
+          }),
+        });
 
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to save observation.');
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}));
+          throw new Error(errorData.error || 'Failed to save observation.');
+        }
+
+        const newObs = await res.json();
+        if (newObs.observation) {
+          setRecentObservations((prev) => [newObs.observation, ...prev.slice(0, 2)]);
+        }
+
+        setLogSuccessMessage('Observation successfully recorded in your Log Book!');
+        setTimeout(() => {
+          setIsLogModalOpen(false);
+          setLogSuccessMessage(null);
+          setLogTitle('');
+          setLogTarget('');
+          setLogNotes('');
+        }, 1500);
+      } catch (err: any) {
+        alert(err.message || 'Error saving observation.');
+      } finally {
+        setIsLogging(false);
       }
-
-      const newObs = await res.json();
-      if (newObs.observation) {
-        setRecentObservations((prev) => [newObs.observation, ...prev.slice(0, 2)]);
-      }
-
-      setLogSuccessMessage('Observation successfully recorded in your Log Book!');
-      setTimeout(() => {
-        setIsLogModalOpen(false);
-        setLogSuccessMessage(null);
-        setLogTitle('');
-        setLogTarget('');
-        setLogNotes('');
-      }, 1500);
-    } catch (err: any) {
-      alert(err.message || 'Error saving observation.');
-    } finally {
-      setIsLogging(false);
-    }
+    }, "Sign in to log celestial observations to your personal logbook");
   }
 
   // Toggle Save Event
   async function handleToggleSaveEvent(eventItem: (typeof UPCOMING_EVENTS)[0]) {
-    const isSaved = savedEventIds.has(eventItem.title);
-    const { data: { user } } = await supabase.auth.getUser();
+    requireAuth(async () => {
+      const isSaved = savedEventIds.has(eventItem.title);
+      const { data: { user } } = await supabase.auth.getUser();
 
-    if (!user) {
-      alert('Please sign in to save celestial events to your planner.');
-      return;
-    }
+      if (!user) return;
 
-    if (isSaved) {
-      // Remove
-      await supabase
-        .from('saved_events')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('event_title', eventItem.title);
-      setSavedEventIds((prev) => {
-        const next = new Set(prev);
-        next.delete(eventItem.title);
-        return next;
-      });
-    } else {
-      // Add
-      await supabase.from('saved_events').insert({
-        user_id: user.id,
-        event_title: eventItem.title,
-        event_date: eventItem.isoDate,
-        notes: eventItem.description,
-      });
-      setSavedEventIds((prev) => new Set([...prev, eventItem.title]));
-    }
+      if (isSaved) {
+        // Remove
+        await supabase
+          .from('saved_events')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('event_title', eventItem.title);
+        setSavedEventIds((prev) => {
+          const next = new Set(prev);
+          next.delete(eventItem.title);
+          return next;
+        });
+      } else {
+        // Add
+        await supabase.from('saved_events').insert({
+          user_id: user.id,
+          event_title: eventItem.title,
+          event_date: eventItem.isoDate,
+          notes: eventItem.description,
+        });
+        setSavedEventIds((prev) => new Set([...prev, eventItem.title]));
+      }
+    }, "Sign in to save celestial events to your observing planner");
   }
 
   const seeing = getSeeingRating(
@@ -337,6 +315,23 @@ export default function DashboardPage() {
     dashboardData.weather?.relativeHumidity ?? 50,
     dashboardData.weather?.cloudCover ?? 10
   );
+
+  if (locationLoading) {
+    return (
+      <div className="space-y-8 pb-8">
+        <div>
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-sky-400 mb-1">
+            <Sparkles className="h-3.5 w-3.5 animate-pulse" />
+            <span>Stargazer Command Center</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+            Tonight&apos;s Observing Dashboard
+          </h1>
+        </div>
+        <LocationSkeletonLoader message="Detecting your exact stargazing location..." />
+      </div>
+    );
+  }
 
   return (
     <motion.div
@@ -367,7 +362,7 @@ export default function DashboardPage() {
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => setIsLogModalOpen(true)}
+            onClick={() => requireAuth(() => setIsLogModalOpen(true), "Sign in to record a new celestial observation")}
             className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-sky-950/50 hover:from-sky-400 hover:to-indigo-500 transition-all hover:scale-105 active:scale-95"
           >
             <PlusCircle className="h-4 w-4" />
@@ -773,7 +768,7 @@ export default function DashboardPage() {
               </div>
               <button
                 type="button"
-                onClick={() => setIsLogModalOpen(true)}
+                onClick={() => requireAuth(() => setIsLogModalOpen(true), "Sign in to record a new celestial observation")}
                 className="text-[10px] text-sky-400 hover:text-sky-300 font-semibold"
               >
                 + Log New

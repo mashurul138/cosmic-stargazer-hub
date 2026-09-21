@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import { calculateVisibilityScore, type VisibilityScore } from "@/lib/utils/visibility-score";
 import { observationSchema, type ObservationInput } from "@/lib/validations/observation";
 import type { Equipment, Observation } from "@/types/database";
+import { useAuth } from "@/src/context/AuthContext";
 
 type SpaceDataResponse = {
   weather: {
@@ -75,6 +76,7 @@ function ObservationsSkeleton() {
 }
 
 function ObservationsContent() {
+  const { requireAuth } = useAuth();
   const searchParams = useSearchParams();
   const locationParam = searchParams.get("location");
   const targetParam = searchParams.get("target");
@@ -106,39 +108,47 @@ function ObservationsContent() {
         fetch("/api/equipment"),
       ]);
 
-      if (!spaceDataResponse.ok) {
-        throw new Error("Unable to retrieve current stargazing conditions.");
-      }
-
-      if (!observationsResponse.ok) {
+      let obsList: Observation[] = [];
+      let isAstronomer = false;
+      if (observationsResponse.ok) {
+        const observationData = (await observationsResponse.json()) as ObservationsResponse;
+        obsList = observationData.observations || [];
+        isAstronomer = Boolean(observationData.isAstronomerView);
+      } else if (observationsResponse.status !== 401) {
         const responseBody = (await observationsResponse.json().catch(() => null)) as {
           error?: string;
         } | null;
         throw new Error(responseBody?.error ?? "Unable to retrieve observation logs.");
       }
 
-      if (!equipmentResponse.ok) {
+      let equipList: Equipment[] = [];
+      if (equipmentResponse.ok) {
+        const equipmentData = (await equipmentResponse.json()) as EquipmentResponse;
+        equipList = equipmentData.equipment || [];
+      } else if (equipmentResponse.status !== 401) {
         const responseBody = (await equipmentResponse.json().catch(() => null)) as {
           error?: string;
         } | null;
         throw new Error(responseBody?.error ?? "Unable to retrieve your equipment inventory.");
       }
 
-      const spaceData = (await spaceDataResponse.json()) as SpaceDataResponse;
-      const observationData = (await observationsResponse.json()) as ObservationsResponse;
-      const equipmentData = (await equipmentResponse.json()) as EquipmentResponse;
+      if (spaceDataResponse.ok) {
+        const spaceData = (await spaceDataResponse.json()) as SpaceDataResponse;
+        if (spaceData.weather) {
+          setVisibilityScore(
+            calculateVisibilityScore({
+              cloudCover: spaceData.weather.cloudCover,
+              humidity: spaceData.weather.relativeHumidity,
+              windSpeed: spaceData.weather.windSpeed,
+              visibility: spaceData.weather.visibility,
+            }),
+          );
+        }
+      }
 
-      setVisibilityScore(
-        calculateVisibilityScore({
-          cloudCover: spaceData.weather.cloudCover,
-          humidity: spaceData.weather.relativeHumidity,
-          windSpeed: spaceData.weather.windSpeed,
-          visibility: spaceData.weather.visibility,
-        }),
-      );
-      setObservations(observationData.observations);
-      setIsAstronomerView(observationData.isAstronomerView);
-      setEquipment(equipmentData.equipment);
+      setObservations(obsList);
+      setIsAstronomerView(isAstronomer);
+      setEquipment(equipList);
     } catch (error) {
       setPageError(
         error instanceof Error
@@ -164,8 +174,10 @@ function ObservationsContent() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setFormError(null);
-    setFormSuccess(null);
+
+    requireAuth(async () => {
+      setFormError(null);
+      setFormSuccess(null);
 
     const payload: ObservationInput = {
       title: formData.title.trim(),
@@ -202,41 +214,44 @@ function ObservationsContent() {
       setObservations((current) => [responseBody.observation!, ...current]);
       setFormData(initialFormState);
       setFormSuccess("Observation saved to your stargazing log.");
-    } catch (error) {
-      setFormError(
-        error instanceof Error
-          ? error.message
-          : "Unable to save the observation. Please try again.",
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
+      } catch (error) {
+        setFormError(
+          error instanceof Error
+            ? error.message
+            : "Unable to save the observation. Please try again.",
+        );
+      } finally {
+        setIsSubmitting(false);
+      }
+    }, "Sign in to log and save celestial observations to your personal logbook");
   }
 
   async function handleDelete(id: string) {
-    setDeletingId(id);
-    setPageError(null);
+    requireAuth(async () => {
+      setDeletingId(id);
+      setPageError(null);
 
-    try {
-      const response = await fetch(`/api/observations/${id}`, { method: "DELETE" });
-      const responseBody = (await response.json().catch(() => null)) as {
-        error?: string;
-      } | null;
+      try {
+        const response = await fetch(`/api/observations/${id}`, { method: "DELETE" });
+        const responseBody = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
 
-      if (!response.ok) {
-        throw new Error(responseBody?.error ?? "Unable to delete the observation.");
+        if (!response.ok) {
+          throw new Error(responseBody?.error ?? "Unable to delete the observation.");
+        }
+
+        setObservations((current) => current.filter((observation) => observation.id !== id));
+      } catch (error) {
+        setPageError(
+          error instanceof Error
+            ? error.message
+            : "Unable to delete the observation. Please try again.",
+        );
+      } finally {
+        setDeletingId(null);
       }
-
-      setObservations((current) => current.filter((observation) => observation.id !== id));
-    } catch (error) {
-      setPageError(
-        error instanceof Error
-          ? error.message
-          : "Unable to delete the observation. Please try again.",
-      );
-    } finally {
-      setDeletingId(null);
-    }
+    }, "Sign in to manage and delete observations");
   }
 
   return (

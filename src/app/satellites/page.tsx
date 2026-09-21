@@ -18,6 +18,8 @@ import {
 
 import { motion } from "framer-motion";
 import type { VisualPassPrediction } from "@/lib/api/n2yo";
+import { useUserLocation } from "@/src/hooks/useUserLocation";
+import { LocationSkeletonLoader } from "@/src/components/LocationSkeletonLoader";
 
 type TargetFilter = "all" | "25544" | "20580" | "48274";
 
@@ -137,6 +139,19 @@ export default function SatellitesTrackerPage() {
   // Real-time countdown clock state
   const [nowMs, setNowMs] = useState<number>(() => Date.now());
 
+  // Strict GPS Location Hook
+  const { location: userLoc, loading: locationLoading } = useUserLocation();
+
+  // Sync GPS Coordinates when resolved
+  useEffect(() => {
+    if (!locationLoading && userLoc) {
+      setLat(userLoc.lat);
+      setLng(userLoc.lng);
+      setLatInput(userLoc.lat.toFixed(4));
+      setLngInput(userLoc.lng.toFixed(4));
+    }
+  }, [locationLoading, userLoc]);
+
   useEffect(() => {
     const timer = setInterval(() => {
       setNowMs(Date.now());
@@ -144,8 +159,9 @@ export default function SatellitesTrackerPage() {
     return () => clearInterval(timer);
   }, []);
 
-  // Fetch passes whenever location or filter changes
+  // Fetch passes whenever location or filter changes (only after GPS resolves)
   useEffect(() => {
+    if (locationLoading) return;
     let isCancelled = false;
 
     async function fetchPasses() {
@@ -187,7 +203,7 @@ export default function SatellitesTrackerPage() {
     return () => {
       isCancelled = true;
     };
-  }, [lat, lng, selectedFilter]);
+  }, [lat, lng, selectedFilter, locationLoading]);
 
   // Identify next upcoming pass (future passes only)
   const upcomingPasses = useMemo(() => {
@@ -271,6 +287,25 @@ export default function SatellitesTrackerPage() {
   }
 
   const observerLocationString = `${lat >= 0 ? lat.toFixed(4) + "° N" : Math.abs(lat).toFixed(4) + "° S"}, ${lng >= 0 ? lng.toFixed(4) + "° E" : Math.abs(lng).toFixed(4) + "° W"}`;
+
+  if (locationLoading) {
+    return (
+      <div className="space-y-6">
+        <header className="mb-6 flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-400/30 bg-sky-500/10 px-3 py-1 text-xs font-semibold text-sky-300">
+              <SatelliteIcon className="h-3.5 w-3.5" />
+              Feature 2: Live ISS &amp; Satellite Tracker
+            </span>
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+            Overhead Visible Satellite Passes
+          </h1>
+        </header>
+        <LocationSkeletonLoader message="Detecting your exact stargazing location..." />
+      </div>
+    );
+  }
 
   return (
     <motion.div

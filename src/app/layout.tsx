@@ -5,6 +5,9 @@ import { Navbar } from "@/src/components/Navbar";
 import { FloatingAiAssistant } from "@/src/components/FloatingAiAssistant";
 import { CosmicBackground } from "@/src/components/CosmicBackground";
 import { Footer } from "@/src/components/Footer";
+import { AiChatProvider } from "@/src/context/AiChatContext";
+import { AuthProvider } from "@/src/context/AuthContext";
+import { AuthModal } from "@/src/components/AuthModal";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,22 +36,29 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
     >
       <body className="min-h-full flex flex-col text-slate-100 font-sans selection:bg-sky-500 selection:text-white relative">
-        {/* Dynamic High-Performance Cosmic Background */}
-        <CosmicBackground />
+        <AuthProvider>
+          <AiChatProvider>
+            {/* Dynamic High-Performance Cosmic Background */}
+            <CosmicBackground />
 
-        {/* Global Navbar */}
-        <Navbar />
+            {/* Global Navbar */}
+            <Navbar />
 
-        {/* Main Content Container */}
-        <main className="flex-1 min-h-screen pt-20 pb-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full relative z-10">
-          {children}
-        </main>
+            {/* Main Content Container */}
+            <main className="flex-1 min-h-screen pt-20 pb-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full relative z-10">
+              {children}
+            </main>
 
-        {/* Global Footer */}
-        <Footer />
+            {/* Global Footer */}
+            <Footer />
 
-        {/* Global Floating AI Assistant */}
-        <FloatingAiAssistant />
+            {/* Global Floating AI Assistant */}
+            <FloatingAiAssistant />
+
+            {/* Global Contextual Auth Modal */}
+            <AuthModal />
+          </AiChatProvider>
+        </AuthProvider>
       </body>
     </html>
   );

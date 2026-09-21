@@ -15,12 +15,7 @@ import {
   ChevronDown,
   RefreshCw,
 } from 'lucide-react';
-
-interface ChatMessage {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-}
+import { useAiChat, type ChatMessage } from '@/src/context/AiChatContext';
 
 const ROUTE_SUGGESTIONS: Record<string, string[]> = {
   '/map': [
@@ -56,65 +51,7 @@ const DEFAULT_SUGGESTIONS = [
   'Recommended beginner telescopes',
 ];
 
-function generateFollowUps(lastResponse: string): string[] {
-  const text = lastResponse.toLowerCase();
-
-  if (/trail|guiding|polar align|mount|drift|tracking/.test(text)) {
-    return [
-      'What exposure time rule (500 or NPF) applies?',
-      'How do I achieve precise polar alignment?',
-      'Would an auto-guider eliminate star trails?',
-    ];
-  }
-  if (/noise|iso|sensor|gain|dark frame|stack|exposure/.test(text)) {
-    return [
-      'What are calibration dark and flat frames?',
-      'What is the sweet spot ISO for my camera?',
-      'Which free stacking software do you recommend?',
-    ];
-  }
-  if (/bortle|light pollution|filter|glow|magnitude|nelm/.test(text)) {
-    return [
-      'What filter helps best with light pollution?',
-      'Can I image emission nebulae in Bortle 6?',
-      'How does lunar phase impact Bortle visibility?',
-    ];
-  }
-  if (/satellite|iss|orbit|tiangong|pass|azimuth|elevation/.test(text)) {
-    return [
-      'How do I photograph an ISS transit?',
-      'What does minimum elevation angle mean?',
-      'Why do satellites flash or vary in brightness?',
-    ];
-  }
-  if (/fov|focal length|eyepiece|magnification|barlow|sensor/.test(text)) {
-    return [
-      'Should I buy a 2x Barlow lens?',
-      'How do I calculate optimal exit pupil?',
-      'What framing works best for the Pleiades (M45)?',
-    ];
-  }
-  if (/party|attend|etiquette|red light|lantern|courtesy/.test(text)) {
-    return [
-      'Why is red light required at dark sky gatherings?',
-      'What warm weather gear should I pack?',
-      'How do I set up without disturbing observers?',
-    ];
-  }
-  if (/telescope|refractor|reflector|dobsonian|aperture/.test(text)) {
-    return [
-      'Dobsonian vs Refractor for beginners?',
-      'How much aperture is needed for deep space?',
-      'How often do telescopes need collimation?',
-    ];
-  }
-
-  return [
-    'Can you explain that more step-by-step?',
-    'What equipment is recommended for this?',
-    'What celestial targets should I try next?',
-  ];
-}
+import { generateFollowUpSuggestions } from '@/lib/utils/aiFollowups';
 
 const markdownComponents = {
   table: ({ node, ...props }: any) => (
@@ -142,15 +79,28 @@ const markdownComponents = {
 export function FloatingAiAssistant() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const { messages, isLoading, sendMessage, clearMessages } = useAiChat();
   const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [followUps, setFollowUps] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Determine route-specific suggestions
   const activeSuggestions = ROUTE_SUGGESTIONS[pathname] || DEFAULT_SUGGESTIONS;
+
+  // Auto-generate follow-ups from the latest assistant response
+  useEffect(() => {
+    if (messages.length > 0) {
+      const lastMsg = messages[messages.length - 1];
+      if (lastMsg.role === 'assistant' && !lastMsg.content.startsWith('⚠️')) {
+        setFollowUps(generateFollowUpSuggestions(lastMsg.content, pathname));
+      } else {
+        setFollowUps([]);
+      }
+    } else {
+      setFollowUps([]);
+    }
+  }, [messages]);
 
   // Auto-scroll messages to bottom
   useEffect(() => {
@@ -173,62 +123,13 @@ export function FloatingAiAssistant() {
     const textToSend = (queryText || input).trim();
     if (!textToSend || isLoading) return;
 
-    const userMessage: ChatMessage = {
-      id: `user-${Date.now()}`,
-      role: 'user',
-      content: textToSend,
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setFollowUps([]);
-    setIsLoading(true);
-
-    try {
-      const response = await fetch('/api/ai-guide', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: textToSend,
-          context: {
-            location: `Route: ${pathname}`,
-          },
-        }),
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('Please sign in to ask Cosmic AI questions.');
-        }
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to reach Cosmic Guide.');
-      }
-
-      const data = await response.json();
-      const assistantText = data.response || 'Clear skies! How else can I guide your observation?';
-
-      const assistantMessage: ChatMessage = {
-        id: `assistant-${Date.now()}`,
-        role: 'assistant',
-        content: assistantText,
-      };
-
-      setMessages((prev) => [...prev, assistantMessage]);
-      setFollowUps(generateFollowUps(assistantText));
-    } catch (err: any) {
-      const errorMessage: ChatMessage = {
-        id: `error-${Date.now()}`,
-        role: 'assistant',
-        content: err.message || 'Apologies, an atmospheric disturbance occurred. Please try again.',
-      };
-      setMessages((prev) => [...prev, errorMessage]);
-    } finally {
-      setIsLoading(false);
-    }
+    await sendMessage(textToSend, { location: `Route: ${pathname}` });
   }
 
   function handleClear() {
-    setMessages([]);
+    clearMessages();
     setFollowUps([]);
   }
 
@@ -316,9 +217,9 @@ export function FloatingAiAssistant() {
                 </div>
               ) : (
                 <>
-                  {messages.map((msg) => (
+                  {messages.map((msg, idx) => (
                     <div
-                      key={msg.id}
+                      key={msg.id || `msg-${idx}`}
                       className={`flex gap-2.5 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
                       {msg.role === 'assistant' && (

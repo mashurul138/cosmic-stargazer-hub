@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { createServerSupabaseClient } from "@/lib/supabase";
+import { sendDiscordDigest } from "@/lib/services/discord";
 
 async function getAuthenticatedUser() {
   const cookieStore = await cookies();
@@ -15,6 +16,7 @@ async function getAuthenticatedUser() {
 export interface NotificationSettings {
   user_id: string;
   discord_webhook: string | null;
+  default_bortle_class: number;
   min_score_threshold: number;
   enabled: boolean;
   updated_at: string;
@@ -46,13 +48,15 @@ export async function GET() {
       ? {
           user_id: settings.user_id,
           discord_webhook: settings.discord_webhook,
-          min_score_threshold: settings.min_score_threshold,
-          enabled: settings.enabled,
+          default_bortle_class: settings.default_bortle_class ?? 4,
+          min_score_threshold: settings.min_score_threshold ?? 80,
+          enabled: settings.enabled ?? true,
           updated_at: settings.updated_at,
         }
       : {
           user_id: user.id,
           discord_webhook: null,
+          default_bortle_class: 4,
           min_score_threshold: 80,
           enabled: true,
           updated_at: new Date().toISOString(),
@@ -98,6 +102,36 @@ export async function PUT(request: Request) {
 
     const body = payload as Record<string, unknown>;
 
+    // Handle test-only request for testing an unsaved or currently entered webhook
+    if (body.testOnly === true) {
+      const webhookToTest = typeof body.discord_webhook === "string" ? body.discord_webhook.trim() : "";
+      if (!webhookToTest || !webhookToTest.startsWith("https://discord.com/api/webhooks/")) {
+        return NextResponse.json(
+          { error: "discord_webhook must start with https://discord.com/api/webhooks/" },
+          { status: 400 },
+        );
+      }
+
+      const testResult = await sendDiscordDigest(webhookToTest, {
+        title: "🌌 Cosmic Hub Webhook Connected!",
+        description:
+          "Your Discord server is successfully linked to Cosmic Event & Stargazer Hub. Future stargazing alerts and night sky digests will be delivered here.",
+      });
+
+      if (!testResult.success) {
+        return NextResponse.json(
+          { error: testResult.error || "Failed to deliver test notification to Discord." },
+          { status: 400 },
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        testSent: true,
+        message: "Confirmation sent to Discord!",
+      });
+    }
+
     // Validate discord_webhook if provided
     if (body.discord_webhook !== undefined && body.discord_webhook !== null) {
       if (typeof body.discord_webhook !== "string") {
@@ -114,6 +148,23 @@ export async function PUT(request: Request) {
           {
             error:
               "discord_webhook must start with https://discord.com/api/webhooks/",
+          },
+          { status: 400 },
+        );
+      }
+    }
+
+    // Validate default_bortle_class if provided
+    if (body.default_bortle_class !== undefined) {
+      const bortleVal = Number(body.default_bortle_class);
+      if (
+        !Number.isInteger(bortleVal) ||
+        bortleVal < 1 ||
+        bortleVal > 9
+      ) {
+        return NextResponse.json(
+          {
+            error: "default_bortle_class must be an integer between 1 and 9.",
           },
           { status: 400 },
         );
@@ -155,6 +206,9 @@ export async function PUT(request: Request) {
       updateData.discord_webhook =
         body.discord_webhook === "" ? null : body.discord_webhook;
     }
+    if (body.default_bortle_class !== undefined) {
+      updateData.default_bortle_class = Number(body.default_bortle_class);
+    }
     if (body.min_score_threshold !== undefined) {
       updateData.min_score_threshold = body.min_score_threshold;
     }
@@ -179,7 +233,35 @@ export async function PUT(request: Request) {
       throw upsertError;
     }
 
-    return NextResponse.json({ settings: updated });
+    // Automatically dispatch an immediate test embed payload if discord_webhook was provided
+    let testSent = false;
+    if (
+      typeof updateData.discord_webhook === "string" &&
+      updateData.discord_webhook.startsWith("https://discord.com/api/webhooks/")
+    ) {
+      const delivery = await sendDiscordDigest(updateData.discord_webhook, {
+        title: "🌌 Cosmic Hub Webhook Connected!",
+        description:
+          "Your Discord server is successfully linked to Cosmic Event & Stargazer Hub. Future stargazing alerts and night sky digests will be delivered here.",
+      });
+      testSent = delivery.success;
+    }
+
+    if (testSent) {
+      return NextResponse.json({
+        success: true,
+        testSent: true,
+        message: "Settings updated and confirmation sent to Discord!",
+        settings: updated,
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      testSent: false,
+      message: "Settings updated successfully!",
+      settings: updated,
+    });
   } catch (error) {
     console.error("Unable to update notification settings:", error);
     return NextResponse.json(

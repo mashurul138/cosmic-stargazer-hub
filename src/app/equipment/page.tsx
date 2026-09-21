@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
 import { motion } from "framer-motion";
+import { useAuth } from "@/context/AuthContext";
 import { calculateOptics, type OpticsResult } from "@/lib/utils/optics";
 import { equipmentSchema, type EquipmentInput } from "@/lib/validations/equipment";
 import type { Equipment, EquipmentType } from "@/types/database";
@@ -49,6 +50,7 @@ function EquipmentSkeleton() {
 }
 
 export default function EquipmentPage() {
+  const { requireAuth } = useAuth();
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [formData, setFormData] = useState<EquipmentFormState>(initialFormState);
   const [selectedEquipmentId, setSelectedEquipmentId] = useState("");
@@ -96,6 +98,10 @@ export default function EquipmentPage() {
 
     try {
       const response = await fetch("/api/equipment");
+      if (response.status === 401) {
+        setEquipment([]);
+        return;
+      }
       const body = (await response.json().catch(() => null)) as EquipmentResponse | null;
 
       if (!response.ok || !body) {
@@ -144,55 +150,59 @@ export default function EquipmentPage() {
       return;
     }
 
-    setIsSubmitting(true);
+    requireAuth(async () => {
+      setIsSubmitting(true);
 
-    try {
-      const response = await fetch("/api/equipment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(validation.data),
-      });
-      const body = (await response.json().catch(() => null)) as {
-        equipment?: Equipment;
-        error?: string;
-      } | null;
+      try {
+        const response = await fetch("/api/equipment", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(validation.data),
+        });
+        const body = (await response.json().catch(() => null)) as {
+          equipment?: Equipment;
+          error?: string;
+        } | null;
 
-      if (!response.ok || !body?.equipment) {
-        throw new Error(body?.error ?? "Unable to save this equipment item.");
+        if (!response.ok || !body?.equipment) {
+          throw new Error(body?.error ?? "Unable to save this equipment item.");
+        }
+
+        setEquipment((current) => [body.equipment!, ...current]);
+        setSelectedEquipmentId(body.equipment.id);
+        setFormData(initialFormState);
+        setFormSuccess(`${body.equipment.name} was added to your inventory.`);
+      } catch (error) {
+        setFormError(error instanceof Error ? error.message : "Unable to save this equipment item.");
+      } finally {
+        setIsSubmitting(false);
       }
-
-      setEquipment((current) => [body.equipment!, ...current]);
-      setSelectedEquipmentId(body.equipment.id);
-      setFormData(initialFormState);
-      setFormSuccess(`${body.equipment.name} was added to your inventory.`);
-    } catch (error) {
-      setFormError(error instanceof Error ? error.message : "Unable to save this equipment item.");
-    } finally {
-      setIsSubmitting(false);
-    }
+    }, "Sign in to save custom telescopes, eyepieces, and binoculars to your profile");
   }
 
-  async function handleDelete(id: string) {
-    setDeletingId(id);
-    setPageError(null);
+  function handleDelete(id: string) {
+    requireAuth(async () => {
+      setDeletingId(id);
+      setPageError(null);
 
-    try {
-      const response = await fetch(`/api/equipment/${id}`, { method: "DELETE" });
-      const body = (await response.json().catch(() => null)) as { error?: string } | null;
+      try {
+        const response = await fetch(`/api/equipment/${id}`, { method: "DELETE" });
+        const body = (await response.json().catch(() => null)) as { error?: string } | null;
 
-      if (!response.ok) {
-        throw new Error(body?.error ?? "Unable to remove this equipment item.");
+        if (!response.ok) {
+          throw new Error(body?.error ?? "Unable to remove this equipment item.");
+        }
+
+        setEquipment((current) => current.filter((item) => item.id !== id));
+        if (selectedEquipmentId === id) {
+          setSelectedEquipmentId("");
+        }
+      } catch (error) {
+        setPageError(error instanceof Error ? error.message : "Unable to remove this equipment item.");
+      } finally {
+        setDeletingId(null);
       }
-
-      setEquipment((current) => current.filter((item) => item.id !== id));
-      if (selectedEquipmentId === id) {
-        setSelectedEquipmentId("");
-      }
-    } catch (error) {
-      setPageError(error instanceof Error ? error.message : "Unable to remove this equipment item.");
-    } finally {
-      setDeletingId(null);
-    }
+    }, "Sign in to manage equipment inventory");
   }
 
   return (

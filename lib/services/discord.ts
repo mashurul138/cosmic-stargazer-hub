@@ -93,9 +93,42 @@ export function buildDiscordPayload(data: DiscordDigestData) {
   };
 }
 
+export interface DiscordCustomEmbed {
+  title: string;
+  description: string;
+  username?: string;
+  color?: number;
+  fields?: Array<{ name: string; value: string; inline?: boolean }>;
+}
+
+export function isCustomEmbed(
+  data: DiscordDigestData | DiscordCustomEmbed,
+): data is DiscordCustomEmbed {
+  return "title" in data && "description" in data && !("stargazingScore" in data);
+}
+
+export function buildDiscordTestPayload(data: DiscordCustomEmbed) {
+  return {
+    username: data.username ?? "Cosmic Stargazer Hub",
+    avatar_url: "https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/72x72/1f30c.png",
+    embeds: [
+      {
+        title: data.title,
+        description: data.description,
+        color: data.color ?? 0x0284c7,
+        fields: data.fields ?? [],
+        footer: {
+          text: "Cosmic Stargazer Hub • Webhook Integration Test",
+        },
+        timestamp: new Date().toISOString(),
+      },
+    ],
+  };
+}
+
 export async function sendDiscordDigest(
   webhookUrl: string,
-  data: DiscordDigestData,
+  data: DiscordDigestData | DiscordCustomEmbed,
 ): Promise<DiscordDeliveryResult> {
   if (!webhookUrl || !webhookUrl.startsWith("https://discord.com/api/webhooks/")) {
     return {
@@ -104,7 +137,9 @@ export async function sendDiscordDigest(
     };
   }
 
-  const payload = buildDiscordPayload(data);
+  const payload = isCustomEmbed(data)
+    ? buildDiscordTestPayload(data)
+    : buildDiscordPayload(data);
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), WEBHOOK_TIMEOUT_MS);
@@ -130,10 +165,16 @@ export async function sendDiscordDigest(
       };
     }
 
-    logger.info("Discord night sky digest delivered successfully.", {
-      location: data.location,
-      score: Math.round(data.stargazingScore),
-    });
+    if (isCustomEmbed(data)) {
+      logger.info("Discord test notification delivered successfully.", {
+        title: data.title,
+      });
+    } else {
+      logger.info("Discord night sky digest delivered successfully.", {
+        location: data.location,
+        score: Math.round(data.stargazingScore),
+      });
+    }
 
     return { success: true, statusCode: response.status };
   } catch (error) {

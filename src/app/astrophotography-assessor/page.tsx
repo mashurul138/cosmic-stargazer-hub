@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import {
   AlertTriangle,
+  Bookmark,
   Camera,
   CheckCircle,
   Clock,
@@ -24,6 +25,7 @@ import {
 } from "lucide-react";
 
 import { motion } from "framer-motion";
+import { useAuth } from "@/context/AuthContext";
 import type { DiagnosticReport, ImageStats } from "@/lib/utils/assess-photo";
 
 const TARGET_TYPES = [
@@ -35,17 +37,20 @@ const TARGET_TYPES = [
 ];
 
 export default function AstrophotographyAssessorPage() {
+  const { requireAuth } = useAuth();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [targetType, setTargetType] = useState<string>("Deep Sky / Nebula");
 
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isSavingToLogbook, setIsSavingToLogbook] = useState<boolean>(false);
+  const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
 
   const [stats, setStats] = useState<ImageStats | null>(null);
   const [report, setReport] = useState<DiagnosticReport | null>(null);
 
-  // Handle file selection
+  // Handle file selection and processing
   function handleFileChange(file: File | null) {
     if (!file) return;
 
@@ -66,6 +71,23 @@ export default function AstrophotographyAssessorPage() {
     const objectUrl = URL.createObjectURL(file);
     setPreviewUrl(objectUrl);
   }
+
+  // Global Clipboard Paste Support (Ctrl+V / Cmd+V)
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.type.startsWith("image/")) {
+          const file = item.getAsFile();
+          if (file) handleFileChange(file);
+          break;
+        }
+      }
+    };
+    window.addEventListener("paste", handlePaste);
+    return () => window.removeEventListener("paste", handlePaste);
+  }, []);
 
   // Handle Drag & Drop
   function handleDragOver(e: React.DragEvent) {
@@ -120,6 +142,41 @@ export default function AstrophotographyAssessorPage() {
     } finally {
       setIsAnalyzing(false);
     }
+  }
+
+  function handleSaveToLogbook() {
+    if (!report) return;
+
+    requireAuth(async () => {
+      setIsSavingToLogbook(true);
+      setErrorMessage(null);
+      setSaveSuccess(null);
+      try {
+        const res = await fetch("/api/observations", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: `${targetType} Photo Assessment`,
+            celestial_target: targetType,
+            location: "Astrophotography Rig",
+            rating: Math.max(1, Math.min(5, Math.round(report.overallScore / 20))),
+            notes: `Optical Score: ${report.overallScore}/100 | Focus: ${report.starFocusRating} | Trailing: ${report.starTrailingDetected ? "Detected" : "None"} | SNR: ${stats?.estimatedSnr ?? "N/A"} dB | Issues: ${report.detectedIssues.join("; ")} | Fixes: ${report.suggestedFixes.join("; ")}`,
+          }),
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || "Failed to save assessment to logbook.");
+        }
+
+        setSaveSuccess("Diagnostic assessment saved to your observation logbook!");
+        setTimeout(() => setSaveSuccess(null), 5000);
+      } catch (err) {
+        setErrorMessage(err instanceof Error ? err.message : "Failed to save assessment to logbook.");
+      } finally {
+        setIsSavingToLogbook(false);
+      }
+    }, "Sign in to save this photo assessment to your observation logbook");
   }
 
   function getScoreColor(score: number): { text: string; stroke: string; bg: string } {
@@ -214,9 +271,9 @@ export default function AstrophotographyAssessorPage() {
                   <div className="flex flex-col items-center py-4">
                     <UploadCloud className="h-10 w-10 text-sky-400 animate-bounce" />
                     <p className="mt-2 text-xs font-bold text-white">
-                      Drag and drop your photograph here
+                      Drag &amp; drop, click to browse, or paste an image directly with Ctrl+V / Cmd+V
                     </p>
-                    <p className="mt-1 text-[11px] text-slate-400">Supports JPEG, PNG, or WebP</p>
+                    <p className="mt-1 text-[11px] text-slate-400">Supports JPEG, PNG, or WebP (Max 10MB)</p>
                     <label
                       htmlFor="photo-upload-input"
                       className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-xl bg-sky-500 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-sky-950/40 transition hover:bg-sky-400"
@@ -467,6 +524,34 @@ export default function AstrophotographyAssessorPage() {
                       ))}
                     </ul>
                   </div>
+                </div>
+
+                {/* Save to Logbook Card */}
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 rounded-3xl border border-indigo-500/30 bg-gradient-to-r from-indigo-950/40 via-slate-900/60 to-purple-950/30 p-5 backdrop-blur-xl shadow-xl shadow-indigo-950/20">
+                  <div className="flex items-center gap-3.5">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
+                      <Bookmark className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-semibold text-white">Save Assessment to Logbook</h4>
+                      <p className="text-xs text-slate-400">Record this optical diagnostic and SNR analysis in your personal observation logbook.</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSaveToLogbook}
+                    disabled={isSavingToLogbook}
+                    className="flex shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 px-5 py-2.5 text-xs font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:brightness-110 active:scale-95 disabled:opacity-50"
+                  >
+                    {isSavingToLogbook ? (
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                    ) : saveSuccess ? (
+                      <CheckCircle className="h-4 w-4 text-emerald-300" />
+                    ) : (
+                      <Bookmark className="h-4 w-4" />
+                    )}
+                    {saveSuccess ? "Saved to Logbook!" : isSavingToLogbook ? "Saving..." : "Save Assessment"}
+                  </button>
                 </div>
               </>
             ) : (

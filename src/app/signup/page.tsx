@@ -1,19 +1,46 @@
 'use client';
 
 import Link from 'next/link';
-import { FormEvent, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { FormEvent, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 
 import { supabase } from '@/lib/supabase';
 import { signUpSchema } from '@/lib/validations/auth';
 
 export default function SignUpPage() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<'stargazer' | 'astronomer'>('stargazer');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    // Route authenticated users visiting signup straight to /dashboard
+    void supabase.auth.getUser().then(({ data: { user } }) => {
+      if (isMounted && user) {
+        router.push('/dashboard');
+      }
+    });
+
+    // Fallback listener for auth state changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (isMounted && session?.user) {
+        router.push('/dashboard');
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, [router]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

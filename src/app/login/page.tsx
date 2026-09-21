@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { FormEvent, useState } from 'react';
+import { FormEvent, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 
 import { supabase } from '@/lib/supabase';
@@ -14,6 +14,31 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    // Route authenticated users visiting login straight to /dashboard
+    void supabase.auth.getUser().then(({ data: { user } }) => {
+      if (isMounted && user) {
+        router.push('/dashboard');
+      }
+    });
+
+    // Fallback listener for auth state changes to route authenticated users straight to /dashboard
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (isMounted && session?.user) {
+        router.push('/dashboard');
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, [router]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -38,7 +63,7 @@ export default function LoginPage() {
         return;
       }
 
-      router.replace('/dashboard');
+      router.push('/dashboard');
       router.refresh();
     } catch {
       setError('Unable to sign in right now. Please try again.');

@@ -56,11 +56,14 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) {
+  const pathname = request.nextUrl.pathname;
+  const isStrictlyPrivate = pathname.startsWith("/admin");
+
+  if (isStrictlyPrivate && !user) {
     return redirectWithSessionCookies(new URL("/login", request.url), supabaseResponse);
   }
 
-  if (request.nextUrl.pathname.startsWith("/admin")) {
+  if (pathname.startsWith("/admin") && user) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("role")
@@ -79,5 +82,7 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/admin/:path*"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+  ],
 };

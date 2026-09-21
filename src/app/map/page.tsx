@@ -17,6 +17,8 @@ import {
 
 import { motion } from "framer-motion";
 import { getBortleDetails, reverseGeocode, type BortleDetails } from "@/lib/api/mapbox";
+import { useUserLocation } from "@/src/hooks/useUserLocation";
+import { LocationSkeletonLoader } from "@/src/components/LocationSkeletonLoader";
 
 interface DarkSkyPreset {
   name: string;
@@ -53,6 +55,28 @@ export default function LightPollutionMapPage() {
   const [bortle, setBortle] = useState<BortleDetails>(() =>
     getBortleDetails(41.6624, -77.8231),
   );
+
+  const { location: userLoc, loading: locationLoading } = useUserLocation();
+
+  useEffect(() => {
+    if (!locationLoading && userLoc) {
+      setCoordinates({ lat: userLoc.lat, lon: userLoc.lng });
+      setLocationName(userLoc.cityName);
+      const computedBortle = getBortleDetails(userLoc.lat, userLoc.lng);
+      setBortle(computedBortle);
+
+      if (markerRef.current) {
+        markerRef.current.setLngLat([userLoc.lng, userLoc.lat]);
+      }
+      if (mapRef.current) {
+        mapRef.current.flyTo({
+          center: [userLoc.lng, userLoc.lat],
+          zoom: Math.max(mapRef.current.getZoom(), 7),
+          essential: true,
+        });
+      }
+    }
+  }, [locationLoading, userLoc]);
 
   // Format latitude & longitude to 4 decimal places with hemisphere designations
   function formatCoordinate(lat: number, lon: number): string {
@@ -285,7 +309,10 @@ export default function LightPollutionMapPage() {
         </div>
 
         {/* Main Grid: Map Canvas + Glassmorphism Side Panel */}
-        <div className="grid flex-1 gap-6 lg:grid-cols-12">
+        {locationLoading ? (
+          <LocationSkeletonLoader message="Detecting your exact stargazing location..." />
+        ) : (
+          <div className="grid flex-1 gap-6 lg:grid-cols-12">
           {/* Map Canvas Column */}
           <div className="relative min-h-[420px] overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl lg:col-span-7 xl:col-span-8">
             {isTokenConfigured ? (
@@ -449,6 +476,7 @@ export default function LightPollutionMapPage() {
             </div>
           </aside>
         </div>
+        )}
     </motion.div>
   );
 }

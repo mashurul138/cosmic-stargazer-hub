@@ -20,6 +20,7 @@ import {
 
 import { motion } from "framer-motion";
 import type { StarPartyWithDetails } from "@/types/database";
+import { useAuth } from "@/src/context/AuthContext";
 
 function formatEventDate(isoDate: string): string {
   const date = new Date(isoDate);
@@ -36,6 +37,7 @@ function formatEventDate(isoDate: string): string {
 }
 
 export default function StarPartiesPage() {
+  const { requireAuth } = useAuth();
   const [parties, setParties] = useState<StarPartyWithDetails[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [pageError, setPageError] = useState<string | null>(null);
@@ -287,7 +289,7 @@ export default function StarPartiesPage() {
 
           <button
             type="button"
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => requireAuth(() => setIsModalOpen(true), "Sign in to host a community star party")}
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-xl shadow-indigo-950/40 transition hover:from-sky-400 hover:to-indigo-500 focus:outline-none focus:ring-2 focus:ring-sky-400"
           >
             <Plus className="h-4 w-4" />
@@ -382,7 +384,7 @@ export default function StarPartiesPage() {
             ) : (
               <button
                 type="button"
-                onClick={() => setIsModalOpen(true)}
+                onClick={() => requireAuth(() => setIsModalOpen(true), "Sign in to host a community star party")}
                 className="mt-4 rounded-xl bg-sky-500 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-sky-950/40 transition hover:bg-sky-400"
               >
                 Host a Star Party
@@ -479,7 +481,7 @@ export default function StarPartiesPage() {
                   <div className="mt-6 pt-2">
                     <button
                       type="button"
-                      onClick={() => void handleToggleRsvp(party.id)}
+                      onClick={() => requireAuth(() => void handleToggleRsvp(party.id), "Sign in to RSVP and reserve your spot at this star party")}
                       disabled={rsvpLoadingId === party.id || (!party.is_attending && isFull)}
                       className={`flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold transition focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-60 ${
                         party.is_attending

@@ -74,6 +74,7 @@ create table public.party_attendees (
 create table public.notification_settings (
   user_id uuid primary key references public.profiles(id) on delete cascade,
   discord_webhook text,
+  default_bortle_class integer not null default 4 check (default_bortle_class between 1 and 9),
   min_score_threshold integer not null default 80 check (min_score_threshold between 0 and 100),
   enabled boolean not null default true,
   updated_at timestamptz not null default now()
