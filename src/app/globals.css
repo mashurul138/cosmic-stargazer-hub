@@ -1,3 +1,4 @@
+@import "mapbox-gl/dist/mapbox-gl.css";
 @import "tailwindcss";
 
 :root {
@@ -21,7 +22,13 @@ body {
   min-height: 100vh;
   margin: 0;
   padding: 0;
-  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family:
+    var(--font-geist-sans),
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
   overflow-x: hidden;
 }
 
@@ -30,9 +37,21 @@ body {
   position: relative;
   background-color: #030712;
   background-image:
-    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(14, 165, 233, 0.15) 0%, transparent 60%),
-    radial-gradient(ellipse 70% 50% at 85% 30%, rgba(139, 92, 246, 0.12) 0%, transparent 55%),
-    radial-gradient(circle at 50% 90%, rgba(56, 189, 248, 0.08) 0%, transparent 50%);
+    radial-gradient(
+      ellipse 80% 60% at 20% 10%,
+      rgba(14, 165, 233, 0.15) 0%,
+      transparent 60%
+    ),
+    radial-gradient(
+      ellipse 70% 50% at 85% 30%,
+      rgba(139, 92, 246, 0.12) 0%,
+      transparent 55%
+    ),
+    radial-gradient(
+      circle at 50% 90%,
+      rgba(56, 189, 248, 0.08) 0%,
+      transparent 50%
+    );
   background-attachment: fixed;
 }
 
@@ -43,14 +62,14 @@ body {
   pointer-events: none;
   z-index: 0;
   background-image:
-    radial-gradient(1px 1px at 25px 35px, #ffffff, rgba(0,0,0,0)),
-    radial-gradient(1.5px 1.5px at 60px 120px, #e2e8f0, rgba(0,0,0,0)),
-    radial-gradient(1px 1px at 150px 80px, #38bdf8, rgba(0,0,0,0)),
-    radial-gradient(2px 2px at 220px 290px, #c084fc, rgba(0,0,0,0)),
-    radial-gradient(1px 1px at 310px 190px, #ffffff, rgba(0,0,0,0)),
-    radial-gradient(1.5px 1.5px at 450px 70px, #93c5fd, rgba(0,0,0,0)),
-    radial-gradient(1px 1px at 580px 240px, #ffffff, rgba(0,0,0,0)),
-    radial-gradient(2px 2px at 700px 380px, #e0e7ff, rgba(0,0,0,0));
+    radial-gradient(1px 1px at 25px 35px, #ffffff, rgba(0, 0, 0, 0)),
+    radial-gradient(1.5px 1.5px at 60px 120px, #e2e8f0, rgba(0, 0, 0, 0)),
+    radial-gradient(1px 1px at 150px 80px, #38bdf8, rgba(0, 0, 0, 0)),
+    radial-gradient(2px 2px at 220px 290px, #c084fc, rgba(0, 0, 0, 0)),
+    radial-gradient(1px 1px at 310px 190px, #ffffff, rgba(0, 0, 0, 0)),
+    radial-gradient(1.5px 1.5px at 450px 70px, #93c5fd, rgba(0, 0, 0, 0)),
+    radial-gradient(1px 1px at 580px 240px, #ffffff, rgba(0, 0, 0, 0)),
+    radial-gradient(2px 2px at 700px 380px, #e0e7ff, rgba(0, 0, 0, 0));
   background-size: 550px 550px;
   background-repeat: repeat;
   opacity: 0.65;
@@ -79,7 +98,9 @@ body {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(30, 41, 59, 0.8);
-  box-shadow: 0 20px 25px -5px rgba(2, 6, 23, 0.5), 0 8px 10px -6px rgba(2, 6, 23, 0.5);
+  box-shadow:
+    0 20px 25px -5px rgba(2, 6, 23, 0.5),
+    0 8px 10px -6px rgba(2, 6, 23, 0.5);
 }
 
 .glass-card {

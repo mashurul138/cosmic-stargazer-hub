@@ -8,12 +8,6 @@ import { Sparkles } from "lucide-react";
 import { useAiChat } from "@/src/context/AiChatContext";
 import { generateFollowUpSuggestions } from "@/lib/utils/aiFollowups";
 
-const suggestions = [
-  "Best telescope for beginners?",
-  "How to view Saturn's rings?",
-  "Optimal camera settings for night sky",
-];
-
 function formatTimestamp(timestamp?: string | Date): string {
   if (!timestamp) return "";
   const d = typeof timestamp === "string" ? new Date(timestamp) : timestamp;
@@ -174,19 +168,6 @@ export default function AiGuidePage() {
             </div>
           ) : null}
 
-          <div className="mb-4 flex flex-wrap gap-2">
-            {suggestions.map((suggestion) => (
-              <button
-                key={suggestion}
-                type="button"
-                onClick={() => void submitPrompt(suggestion)}
-                disabled={isLoading}
-                className="rounded-full border border-indigo-400/35 bg-indigo-400/10 px-3 py-1.5 text-xs font-semibold text-indigo-100 transition hover:bg-indigo-400/20 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {suggestion}
-              </button>
-            ))}
-          </div>
 
           <form onSubmit={handleSubmit} className="flex gap-3">
             <label htmlFor="cosmic-guide-prompt" className="sr-only">
