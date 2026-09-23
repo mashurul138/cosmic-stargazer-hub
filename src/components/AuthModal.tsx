@@ -1,19 +1,36 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { X, Sparkles, Lock, Mail, Key, User, ArrowRight, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import {
+  X,
+  Sparkles,
+  Lock,
+  Mail,
+  Key,
+  ArrowRight,
+  Loader2,
+  AlertCircle,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 import { useAuth } from "@/src/context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { loginSchema, signUpSchema } from "@/lib/validations/auth";
+import { mapAuthError } from "@/lib/utils/authErrors";
+import { OAuthButtons } from "@/src/components/auth/OAuthButtons";
 
 export function AuthModal() {
+  const router = useRouter();
   const { isModalOpen, promptMessage, closeAuthModal, onAuthSuccess } = useAuth();
   const [tab, setTab] = useState<"signin" | "signup">("signin");
 
-  // Form Fields
+  // Form Fields (retained across tab switching)
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState<"stargazer" | "astronomer">("stargazer");
 
   // Status
@@ -24,6 +41,7 @@ export function AuthModal() {
   function resetForm() {
     setEmail("");
     setPassword("");
+    setShowPassword(false);
     setError(null);
     setSuccess(null);
     setIsSubmitting(false);
@@ -34,12 +52,43 @@ export function AuthModal() {
     closeAuthModal();
   }
 
+  function handleSwitchTab(newTab: "signin" | "signup") {
+    setTab(newTab);
+    setError(null);
+    setSuccess(null);
+    // Note: email and password are intentionally preserved across tab switches
+  }
+
   async function handleSignIn(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setSuccess(null);
 
-    const validation = loginSchema.safeParse({ email, password });
+    const trimmedEmail = email.trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    // Client-side pre-validation
+    if (!trimmedEmail) {
+      setError("Please enter your email address.");
+      return;
+    }
+
+    if (!emailRegex.test(trimmedEmail)) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+
+    if (!password) {
+      setError("Please enter your password.");
+      return;
+    }
+
+    if (password.length < 6) {
+      setError("Password should be at least 6 characters.");
+      return;
+    }
+
+    const validation = loginSchema.safeParse({ email: trimmedEmail, password });
     if (!validation.success) {
       setError(validation.error.issues[0]?.message ?? "Please verify your email and password.");
       return;
@@ -53,15 +102,20 @@ export function AuthModal() {
       });
 
       if (signInErr) {
-        throw signInErr;
+        setError(mapAuthError(signInErr));
+        return;
       }
 
-      if (data.session) {
+      if (data?.session) {
         resetForm();
-        onAuthSuccess();
+        const handledCallback = onAuthSuccess();
+        if (!handledCallback) {
+          router.push("/dashboard");
+          router.refresh();
+        }
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Unable to sign in. Please verify your credentials.");
+      setError(mapAuthError(err));
     } finally {
       setIsSubmitting(false);
     }
@@ -72,7 +126,31 @@ export function AuthModal() {
     setError(null);
     setSuccess(null);
 
-    const validation = signUpSchema.safeParse({ email, password, role });
+    const trimmedEmail = email.trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    // Client-side pre-validation
+    if (!trimmedEmail) {
+      setError("Please enter your email address.");
+      return;
+    }
+
+    if (!emailRegex.test(trimmedEmail)) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+
+    if (!password) {
+      setError("Please enter a password.");
+      return;
+    }
+
+    if (password.length < 6) {
+      setError("Password should be at least 6 characters.");
+      return;
+    }
+
+    const validation = signUpSchema.safeParse({ email: trimmedEmail, password, role });
     if (!validation.success) {
       setError(validation.error.issues[0]?.message ?? "Please check your registration input.");
       return;
@@ -89,38 +167,32 @@ export function AuthModal() {
       });
 
       if (signUpErr) {
-        throw signUpErr;
+        setError(mapAuthError(signUpErr));
+        return;
       }
 
-      if (data.session) {
+      if (data?.session) {
         resetForm();
-        onAuthSuccess();
-      } else {
-        setSuccess("Account created! Check your email to confirm registration or sign in directly.");
+        const handledCallback = onAuthSuccess();
+        if (!handledCallback) {
+          router.push("/dashboard");
+          router.refresh();
+        }
+        return;
+      }
+
+      if (data?.user) {
+        setPassword("");
+        setSuccess(`Check your inbox! We sent a confirmation link to ${validation.data.email}.`);
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Registration failed. Please try again.");
+      setError(mapAuthError(err));
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  async function handleOAuth(provider: "github" | "google" | "discord") {
-    try {
-      const origin = typeof window !== "undefined" ? window.location.origin : "";
-      const { error: oauthErr } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: {
-          redirectTo: `${origin}/auth/callback`,
-        },
-      });
-      if (oauthErr) {
-        setError(oauthErr.message);
-      }
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "OAuth connection failed.");
-    }
-  }
+
 
   if (!isModalOpen) return null;
 
@@ -145,7 +217,7 @@ export function AuthModal() {
           <button
             type="button"
             onClick={handleClose}
-            className="absolute top-5 right-5 rounded-xl p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="absolute top-5 right-5 rounded-xl p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
             aria-label="Close authentication modal"
           >
             <X className="h-5 w-5" />
@@ -169,16 +241,28 @@ export function AuthModal() {
             </div>
           </div>
 
+          {/* Social OAuth Buttons */}
+          <div className="mt-5">
+            <OAuthButtons onError={(err) => setError(err)} disabled={isSubmitting} />
+
+            <div className="relative my-4">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-slate-800" />
+              </div>
+              <div className="relative flex justify-center text-[11px] uppercase">
+                <span className="bg-slate-900 px-2 text-slate-400">
+                  Or continue with email
+                </span>
+              </div>
+            </div>
+          </div>
+
           {/* Tabs: Sign In vs Create Account */}
-          <div className="mt-5 grid grid-cols-2 gap-1 rounded-xl bg-slate-950 p-1 border border-slate-800">
+          <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-950 p-1 border border-slate-800">
             <button
               type="button"
-              onClick={() => {
-                setTab("signin");
-                setError(null);
-                setSuccess(null);
-              }}
-              className={`rounded-lg py-1.5 text-xs font-semibold transition-all ${
+              onClick={() => handleSwitchTab("signin")}
+              className={`rounded-lg py-1.5 text-xs font-semibold transition-all cursor-pointer ${
                 tab === "signin"
                   ? "bg-indigo-600 text-white shadow-md shadow-indigo-950/50"
                   : "text-slate-400 hover:text-slate-200"
@@ -188,12 +272,8 @@ export function AuthModal() {
             </button>
             <button
               type="button"
-              onClick={() => {
-                setTab("signup");
-                setError(null);
-                setSuccess(null);
-              }}
-              className={`rounded-lg py-1.5 text-xs font-semibold transition-all ${
+              onClick={() => handleSwitchTab("signup")}
+              className={`rounded-lg py-1.5 text-xs font-semibold transition-all cursor-pointer ${
                 tab === "signup"
                   ? "bg-indigo-600 text-white shadow-md shadow-indigo-950/50"
                   : "text-slate-400 hover:text-slate-200"
@@ -205,16 +285,36 @@ export function AuthModal() {
 
           {/* Error / Success Feedback */}
           {error ? (
-            <div className="mt-4 flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-300">
-              <AlertCircle className="h-4 w-4 shrink-0 text-rose-400" />
-              <span>{error}</span>
+            <div className="mt-4 flex items-start justify-between gap-2.5 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-300">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0 text-rose-400 mt-0.5" />
+                <span className="leading-relaxed">{error}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setError(null)}
+                className="rounded-lg p-0.5 text-rose-400 hover:bg-rose-500/20 hover:text-rose-200 transition-colors"
+                aria-label="Dismiss error"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
             </div>
           ) : null}
 
           {success ? (
-            <div className="mt-4 flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-300">
-              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
-              <span>{success}</span>
+            <div className="mt-4 flex items-start justify-between gap-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-300">
+              <div className="flex items-start gap-2">
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400 mt-0.5" />
+                <span className="leading-relaxed">{success}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSuccess(null)}
+                className="rounded-lg p-0.5 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-200 transition-colors"
+                aria-label="Dismiss success message"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
             </div>
           ) : null}
 
@@ -222,6 +322,7 @@ export function AuthModal() {
           <form
             onSubmit={tab === "signin" ? handleSignIn : handleSignUp}
             className="mt-5 space-y-4"
+            noValidate
           >
             <div>
               <label className="block text-xs font-medium text-slate-300 mb-1">Email Address</label>
@@ -234,7 +335,7 @@ export function AuthModal() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="stargazer@example.com"
                   disabled={isSubmitting}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-950 pl-10 pr-3.5 py-2.5 text-xs text-white placeholder-slate-500 outline-none transition focus:border-sky-400 focus:ring-1 focus:ring-sky-400"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 pl-10 pr-3.5 py-2.5 text-xs text-white placeholder-slate-500 outline-none transition focus:border-sky-400 focus:ring-1 focus:ring-sky-400 disabled:opacity-60 disabled:cursor-not-allowed"
                 />
               </div>
             </div>
@@ -244,14 +345,23 @@ export function AuthModal() {
               <div className="relative">
                 <Key className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder="At least 6 characters"
                   disabled={isSubmitting}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-950 pl-10 pr-3.5 py-2.5 text-xs text-white placeholder-slate-500 outline-none transition focus:border-sky-400 focus:ring-1 focus:ring-sky-400"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 pl-10 pr-10 py-2.5 text-xs text-white placeholder-slate-500 outline-none transition focus:border-sky-400 focus:ring-1 focus:ring-sky-400 disabled:opacity-60 disabled:cursor-not-allowed"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  disabled={isSubmitting}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 focus:outline-none transition-colors"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
               </div>
             </div>
 
@@ -262,7 +372,7 @@ export function AuthModal() {
                   value={role}
                   onChange={(e) => setRole(e.target.value as "stargazer" | "astronomer")}
                   disabled={isSubmitting}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3.5 py-2.5 text-xs text-white outline-none focus:border-sky-400"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3.5 py-2.5 text-xs text-white outline-none focus:border-sky-400 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   <option value="stargazer">Stargazer (Community Observer)</option>
                   <option value="astronomer">Astronomer (Researcher / Verified)</option>
@@ -273,7 +383,7 @@ export function AuthModal() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 px-4 py-2.5 text-xs font-semibold text-white shadow-lg shadow-sky-950/40 transition hover:from-sky-400 hover:to-indigo-500 disabled:opacity-50 cursor-pointer"
+              className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 px-4 py-2.5 text-xs font-semibold text-white shadow-lg shadow-sky-950/40 transition hover:from-sky-400 hover:to-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               {isSubmitting ? (
                 <>
@@ -288,42 +398,6 @@ export function AuthModal() {
               )}
             </button>
           </form>
-
-          {/* Social OAuth Shortcuts */}
-          <div className="mt-5">
-            <div className="relative flex items-center justify-center">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-800" />
-              </div>
-              <span className="relative bg-slate-900 px-2 text-[11px] text-slate-500">
-                Or quick connect with
-              </span>
-            </div>
-
-            <div className="mt-3 grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => handleOAuth("github")}
-                className="flex items-center justify-center rounded-xl border border-slate-800 bg-slate-950/80 py-2 text-xs font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition"
-              >
-                GitHub
-              </button>
-              <button
-                type="button"
-                onClick={() => handleOAuth("google")}
-                className="flex items-center justify-center rounded-xl border border-slate-800 bg-slate-950/80 py-2 text-xs font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition"
-              >
-                Google
-              </button>
-              <button
-                type="button"
-                onClick={() => handleOAuth("discord")}
-                className="flex items-center justify-center rounded-xl border border-slate-800 bg-slate-950/80 py-2 text-xs font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition"
-              >
-                Discord
-              </button>
-            </div>
-          </div>
 
           <p className="mt-5 text-center text-[11px] text-slate-500">
             Guest mode keeps all your current page edits, coordinates, and filters active.

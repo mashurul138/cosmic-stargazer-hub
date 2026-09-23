@@ -21,7 +21,7 @@ export interface AuthContextValue {
   requireAuth: (actionCallback: () => void, promptMessage?: string) => void;
   openAuthModal: (promptMessage?: string, actionCallback?: () => void) => void;
   closeAuthModal: () => void;
-  onAuthSuccess: () => void;
+  onAuthSuccess: () => boolean;
   signOut: () => Promise<void>;
 }
 
@@ -83,7 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     pendingActionRef.current = null;
   }, []);
 
-  const onAuthSuccess = useCallback(() => {
+  const onAuthSuccess = useCallback((): boolean => {
     setIsModalOpen(false);
     const callback = pendingActionRef.current;
     pendingActionRef.current = null;
@@ -91,10 +91,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Execute the queued protected action automatically
       try {
         callback();
+        return true;
       } catch (err) {
         console.error("Error executing queued action after auth:", err);
+        return true;
       }
     }
+    return false;
   }, []);
 
   const requireAuth = useCallback(
